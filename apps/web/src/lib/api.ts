@@ -226,12 +226,17 @@ export type RecoveryChecklist = {
   completed_at: string | null;
 };
 
+export type ApprovalOperation =
+  | { type: "set_rank"; rank: number }
+  | { type: "reopen_for_dispatch"; checklist_id: string }
+  | { type: "complete_with_summary"; checklist_id: string; resolution_summary: string };
+
 export type ApprovalRequest = {
   id: string;
   issue_id: string;
   requested_by: string;
   target_version: number;
-  proposed_operation: Record<string, unknown>;
+  proposed_operation: ApprovalOperation;
   state: "pending" | "approved" | "rejected" | "superseded" | "expired";
   expires_at: string;
   decided_by: string | null;
@@ -947,7 +952,7 @@ export function completeRecovery(
 export function createApprovalRequest(
   projectId: string,
   issueId: string,
-  input: { target_version: number; proposed_operation: Record<string, unknown>; expires_in_seconds?: number },
+  input: { target_version: number; proposed_operation: ApprovalOperation; expires_in_seconds?: number },
 ) {
   return sendJson<ApprovalRequest>(
     `/api/v1/projects/${encodeURIComponent(projectId)}/issues/${encodeURIComponent(issueId)}/approvals`,

@@ -217,13 +217,12 @@ The old session receives a best-effort interruption event. Its next renewal or r
 
 ### Approval
 
-An approval request stores the exact proposed operation and target version. Approval is not execution. The execution transaction rechecks:
+An approval request stores the exact proposed operation and target version. Recording a proposal does not execute it. An approval decision applies supported internal operations in the same transaction as the decision and rechecks:
 
-- requester and approver authorization;
 - target workspace and object version;
-- current capability mode;
-- lease ownership or delegated authority;
 - request expiry and state.
+
+The API verifies the approver's current admin role before entering that transaction. Human recovery proposals require an owner or admin at creation. A later agent-proposal endpoint must also recheck the requester's current session, lease fence, and delegated capability when the decision executes; it must not infer that authority from the stored operation.
 
 If the target changed materially, the request becomes `superseded`.
 
@@ -309,10 +308,11 @@ The adapter has two paths:
 
 1. initial import through the read API, filtering out pull requests represented in issue responses;
 2. signed webhook ingestion for the selected `issues` actions: `opened`, `edited`, `closed`, `reopened`, `transferred`, and `deleted`.
+3. approval-gated issue creation through a typed command that records an idempotent outbox request before the worker calls GitHub.
 
 Webhook handling acknowledges and stores the delivery before applying any derived update. Deduplicate on GitHub's delivery ID, verify the signature, and keep the raw payload in a bounded receipt record with sensitive fields filtered from ordinary logs.
 
-The adapter updates external issue snapshots and explicit links. It does not write Riichi dispatch state automatically, mirror GitHub comments, subscribe to `issue_comment`, or ingest pull requests, checks, reviews, branches, or commits during the pilot.
+The adapter updates external issue snapshots and explicit links. Approved creation stores the resulting GitHub issue link and treats a retry as the same operation. It does not call GitHub inside the approval transaction, write Riichi dispatch state automatically, mirror GitHub comments, subscribe to `issue_comment`, or ingest pull requests, checks, reviews, branches, or commits during the pilot.
 
 Current GitHub references: [webhook events and payloads](https://docs.github.com/en/webhooks/webhook-events-and-payloads) and [REST endpoints for issues](https://docs.github.com/en/rest/issues/issues).
 

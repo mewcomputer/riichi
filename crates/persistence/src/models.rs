@@ -420,6 +420,21 @@ pub struct RecoveryChecklistRecord {
     pub completed_at: Option<DateTime<Utc>>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+pub enum ApprovalOperation {
+    SetRank {
+        rank: i64,
+    },
+    ReopenForDispatch {
+        checklist_id: Uuid,
+    },
+    CompleteWithSummary {
+        checklist_id: Uuid,
+        resolution_summary: String,
+    },
+}
+
 #[derive(Debug, Clone, Serialize, FromRow)]
 pub struct ApprovalRequestRecord {
     pub id: Uuid,

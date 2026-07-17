@@ -502,7 +502,7 @@ pub(super) async fn takeover_issue(
     Json(request): Json<TakeoverRequest>,
 ) -> Result<Json<riichi_persistence::RecoveryChecklist>, ApiError> {
     let principal = human_principal(&state, &jar).await?;
-    require_member(&principal, project_id)?;
+    require_admin(&principal, project_id)?;
     let checklist = state
         .application
         .takeover_issue(project_id, issue_id, principal.account.id, &request.reason)
@@ -518,7 +518,7 @@ pub(super) async fn complete_recovery(
     Json(request): Json<CompleteRecoveryRequest>,
 ) -> Result<Json<riichi_persistence::IssueRecord>, ApiError> {
     let principal = human_principal(&state, &jar).await?;
-    require_member(&principal, project_id)?;
+    require_admin(&principal, project_id)?;
     let issue = state
         .application
         .complete_recovery(
@@ -541,7 +541,15 @@ pub(super) async fn create_approval_request(
     Json(request): Json<CreateApprovalRequest>,
 ) -> Result<Json<riichi_persistence::ApprovalRequest>, ApiError> {
     let principal = human_principal(&state, &jar).await?;
-    require_member(&principal, project_id)?;
+    match &request.proposed_operation {
+        riichi_persistence::ApprovalOperation::SetRank { .. } => {
+            require_member(&principal, project_id)?;
+        }
+        riichi_persistence::ApprovalOperation::ReopenForDispatch { .. }
+        | riichi_persistence::ApprovalOperation::CompleteWithSummary { .. } => {
+            require_admin(&principal, project_id)?;
+        }
+    }
     let approval = state
         .application
         .create_approval_request(

@@ -1,5 +1,11 @@
 # HISTORY
 
+## 2026-07-17 — Executable typed approvals
+
+Approval requests now store validated typed operations and apply approved rank or recovery changes in the same PostgreSQL transaction as the decision. Rejected requests remain side-effect free, stale or closed targets persist as superseded, and expired decisions persist before returning their typed error. Legacy stored rank proposals using `op` or `operation` remain readable, while new requests use the canonical `type` envelope.
+
+The initial operation set is `set_rank`, `reopen_for_dispatch`, and `complete_with_summary`. Future external operations, including GitHub issue creation, must enqueue an idempotent outbox command instead of performing network I/O inside the approval transaction.
+
 ## 2026-07-13 — Rich text editors for issue detail
 
 Converted the issue detail page's title and body fields from plain HTML inputs

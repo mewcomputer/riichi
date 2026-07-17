@@ -41,7 +41,7 @@ pub use loro::{
 };
 pub use models::{
     ActivityRecord as Activity, AgentRoleRecord as AgentRole, AgentSessionRecord as AgentSession,
-    ApprovalRequestRecord as ApprovalRequest, AttachmentRecord as Attachment,
+    ApprovalOperation, ApprovalRequestRecord as ApprovalRequest, AttachmentRecord as Attachment,
     AttachmentUploadRecord as AttachmentUpload, ClaimRecord as Claim, CommentRecord as Comment,
     DeliveryEventRecord, DispatchHoldRecord as DispatchHold, DocumentJobRecord as DocumentJob,
     DocumentRecord as Document, DocumentReferenceRecord as DocumentReference,

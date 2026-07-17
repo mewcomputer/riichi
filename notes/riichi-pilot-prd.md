@@ -498,12 +498,13 @@ These decisions are now the pilot defaults:
 8. The approval defaults are the capability policy in section 7.5.
 9. The initial lease duration, renewal cadence, and session lifetime are the provisional values in section 7.4.
 10. The pilot GitHub boundary is issue-level integration with the selected `issues` events and a separate Riichi-native comments stream.
+11. Human owners and admins receive recovery-review access by default. Ordinary team members can see that quarantined data exists but cannot read its payload. Agent collaborators receive `recovery_review` only through an explicit grant, and a revoked lease owner receives no automatic access.
+12. The recovery checklist offers `reopen_for_dispatch` and `complete_with_summary` as one-click proposals. Continuing investigation leaves the checklist open; quarantined payloads are never replayed as an untyped recovery action.
+13. The pilot includes approval-gated GitHub issue creation with repository authorization, idempotency, audit attribution, and a durable Riichi-to-GitHub link.
 
-## 16.1 Remaining product decisions
+## 16.1 Recovery and GitHub decisions
 
-1. Which collaborators receive the explicit recovery-review capability by default?
-2. Which recovery actions should be available as one-click proposals from the checklist?
-3. Whether the pilot needs GitHub issue creation in addition to import and linking.
+These choices are recorded above. Expanding recovery visibility to ordinary team members, adding generic quarantined-payload replay, or permitting automatic agent-created GitHub issues requires a new product decision rather than an implicit capability change.
 
 ## 17. Technology boundary for the next discussion
 

@@ -954,7 +954,7 @@ struct CompleteRecoveryRequest {
 #[derive(Debug, Deserialize)]
 struct CreateApprovalRequest {
     target_version: i64,
-    proposed_operation: serde_json::Value,
+    proposed_operation: riichi_persistence::ApprovalOperation,
     expires_in_seconds: Option<i64>,
 }
 

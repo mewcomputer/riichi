@@ -51,9 +51,10 @@ The E2E scripts select the active Docker context. Run them through the scripts i
 
 1. Open the issue detail and confirm the active lease, expiry, and issue version.
 2. Use takeover only when the agent session is no longer trusted to continue. Record a concrete reason.
-3. Follow the recovery checklist. Release returns the issue to `todo`; complete requires a resolution summary.
-4. Confirm the old lease is revoked and the fencing token has advanced.
-5. If the browser missed the SSE hint, reload or use the queue refresh action. SSE is a refetch hint, never the authority.
+3. Follow the recovery checklist. `reopen_for_dispatch` returns the issue to `todo`; `complete_with_summary` moves it to `done` and records the required resolution summary. Leaving the checklist open means investigation is continuing.
+4. Owners and admins may inspect quarantined payloads. Ordinary team members see only that quarantined data exists. Agent collaborators require an explicit `recovery_review` grant, and revoked lease owners receive no automatic access.
+5. Confirm the old lease is revoked and the fencing token has advanced.
+6. If the browser missed the SSE hint, reload or use the queue refresh action. SSE is a refetch hint, never the authority.
 
 For a quarantined stale report, confirm the issue's quarantine count first. Full
 payload access is restricted to admins or agents with an explicit

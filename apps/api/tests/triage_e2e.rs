@@ -2,8 +2,8 @@ mod support;
 
 use chrono::Duration;
 use riichi_persistence::{
-    Database, IssueCreate, IssueUpdate, LoroSnapshotSeed, LoroUpdateOutcome, LoroUpdateSeed,
-    ReportBatch, ReportOperation,
+    ApprovalOperation, Database, IssueCreate, IssueUpdate, LoroSnapshotSeed, LoroUpdateOutcome,
+    LoroUpdateSeed, ReportBatch, ReportOperation,
 };
 use sha2::{Digest, Sha256};
 use support::PostgresHarness;
@@ -19,6 +19,65 @@ async fn human_actor(database: &Database, subject: &str) -> Uuid {
         )
         .await
         .unwrap()
+}
+
+async fn open_recovery(
+    database: &Database,
+    project_id: Uuid,
+    actor_id: Uuid,
+    display_key: &str,
+) -> (Uuid, riichi_persistence::RecoveryChecklist) {
+    let role_id = Uuid::now_v7();
+    let session_id = Uuid::now_v7();
+    database
+        .create_agent_role(role_id, project_id, "recovery fixture")
+        .await
+        .unwrap();
+    database
+        .create_session(
+            session_id,
+            project_id,
+            role_id,
+            Duration::hours(1),
+            &format!("{display_key}-token"),
+        )
+        .await
+        .unwrap();
+    let issue_id = database
+        .create_issue_with_metadata(
+            project_id,
+            IssueCreate {
+                id: Uuid::now_v7(),
+                display_key: display_key.to_owned(),
+                title: "recover approved work".to_owned(),
+                body: String::new(),
+                status: "todo".to_owned(),
+                agent_eligible: true,
+                spec_complete: true,
+                rank: 0,
+                labels: Vec::new(),
+                assignee_account_id: None,
+                parent_issue_id: None,
+            },
+            actor_id,
+        )
+        .await
+        .unwrap();
+    database
+        .claim(
+            project_id,
+            session_id,
+            issue_id,
+            Duration::minutes(10),
+            &format!("{display_key}-claim"),
+        )
+        .await
+        .unwrap();
+    let checklist = database
+        .takeover_issue(project_id, issue_id, actor_id, "recover through approval")
+        .await
+        .unwrap();
+    (issue_id, checklist)
 }
 
 #[tokio::test]
@@ -563,7 +622,7 @@ async fn human_takeover_recovery_and_approval_are_versioned_and_auditable() {
             issue_id,
             actor_id,
             recovered.version,
-            serde_json::json!({ "operation": "set_rank", "rank": 3 }),
+            ApprovalOperation::SetRank { rank: 3 },
             Duration::hours(1),
         )
         .await
@@ -575,7 +634,222 @@ async fn human_takeover_recovery_and_approval_are_versioned_and_auditable() {
         .await
         .unwrap();
     assert_eq!(approved.state, "approved");
-    assert_eq!(approved.proposed_operation["operation"], "set_rank");
+    assert_eq!(approved.proposed_operation["type"], "set_rank");
+    let reranked = database.get_issue(project_id, issue_id).await.unwrap();
+    assert_eq!(reranked.rank, 3);
+    assert_eq!(reranked.version, recovered.version + 1);
+}
+
+#[tokio::test]
+#[ignore = "starts a disposable PostgreSQL container"]
+async fn rejected_approval_does_not_apply_its_operation() {
+    let harness = PostgresHarness::start().await;
+    let database = &harness.database;
+    let project_id = Uuid::now_v7();
+    let actor_id = human_actor(database, "rejected-approval").await;
+    database
+        .create_project(project_id, "rejected approval project")
+        .await
+        .unwrap();
+    let issue_id = database
+        .create_issue_with_metadata(
+            project_id,
+            IssueCreate {
+                id: Uuid::now_v7(),
+                display_key: "RII-APPROVAL-1".to_owned(),
+                title: "keep my rank".to_owned(),
+                body: String::new(),
+                status: "todo".to_owned(),
+                agent_eligible: true,
+                spec_complete: true,
+                rank: 2,
+                labels: Vec::new(),
+                assignee_account_id: None,
+                parent_issue_id: None,
+            },
+            actor_id,
+        )
+        .await
+        .unwrap();
+    let issue = database.get_issue(project_id, issue_id).await.unwrap();
+    let approval = database
+        .create_approval_request(
+            project_id,
+            issue_id,
+            actor_id,
+            issue.version,
+            ApprovalOperation::SetRank { rank: 8 },
+            Duration::hours(1),
+        )
+        .await
+        .unwrap();
+
+    let rejected = database
+        .decide_approval_request(project_id, approval.id, actor_id, false)
+        .await
+        .unwrap();
+
+    assert_eq!(rejected.state, "rejected");
+    let unchanged = database.get_issue(project_id, issue_id).await.unwrap();
+    assert_eq!(unchanged.rank, 2);
+    assert_eq!(unchanged.version, issue.version);
+}
+
+#[tokio::test]
+#[ignore = "starts a disposable PostgreSQL container"]
+async fn approved_reopen_operation_closes_recovery_and_returns_issue_to_dispatch() {
+    let harness = PostgresHarness::start().await;
+    let database = &harness.database;
+    let project_id = Uuid::now_v7();
+    let actor_id = human_actor(database, "approved-reopen").await;
+    database
+        .create_project(project_id, "approved reopen project")
+        .await
+        .unwrap();
+    let (issue_id, checklist) =
+        open_recovery(database, project_id, actor_id, "RII-APPROVAL-2").await;
+    let issue = database.get_issue(project_id, issue_id).await.unwrap();
+    let approval = database
+        .create_approval_request(
+            project_id,
+            issue_id,
+            actor_id,
+            issue.version,
+            ApprovalOperation::ReopenForDispatch {
+                checklist_id: checklist.id,
+            },
+            Duration::hours(1),
+        )
+        .await
+        .unwrap();
+
+    database
+        .decide_approval_request(project_id, approval.id, actor_id, true)
+        .await
+        .unwrap();
+
+    let reopened = database.get_issue(project_id, issue_id).await.unwrap();
+    assert_eq!(reopened.status, "todo");
+    assert_eq!(reopened.version, issue.version + 1);
+    let checklist_state =
+        sqlx::query_scalar::<_, String>("SELECT state FROM recovery_checklists WHERE id = $1")
+            .bind(checklist.id)
+            .fetch_one(database.pool())
+            .await
+            .unwrap();
+    assert_eq!(checklist_state, "completed");
+}
+
+#[tokio::test]
+#[ignore = "starts a disposable PostgreSQL container"]
+async fn approved_completion_operation_records_summary_and_finishes_recovery() {
+    let harness = PostgresHarness::start().await;
+    let database = &harness.database;
+    let project_id = Uuid::now_v7();
+    let actor_id = human_actor(database, "approved-completion").await;
+    database
+        .create_project(project_id, "approved completion project")
+        .await
+        .unwrap();
+    let (issue_id, checklist) =
+        open_recovery(database, project_id, actor_id, "RII-APPROVAL-3").await;
+    let issue = database.get_issue(project_id, issue_id).await.unwrap();
+    let approval = database
+        .create_approval_request(
+            project_id,
+            issue_id,
+            actor_id,
+            issue.version,
+            ApprovalOperation::CompleteWithSummary {
+                checklist_id: checklist.id,
+                resolution_summary: "verified the recovered result".to_owned(),
+            },
+            Duration::hours(1),
+        )
+        .await
+        .unwrap();
+
+    database
+        .decide_approval_request(project_id, approval.id, actor_id, true)
+        .await
+        .unwrap();
+
+    let completed = database.get_issue(project_id, issue_id).await.unwrap();
+    assert_eq!(completed.status, "done");
+    let summary = sqlx::query_scalar::<_, String>(
+        "SELECT body FROM comments WHERE issue_id = $1 ORDER BY created_at DESC LIMIT 1",
+    )
+    .bind(issue_id)
+    .fetch_one(database.pool())
+    .await
+    .unwrap();
+    assert_eq!(summary, "verified the recovered result");
+}
+
+#[tokio::test]
+#[ignore = "starts a disposable PostgreSQL container"]
+async fn stale_approval_is_persisted_as_superseded_without_applying() {
+    let harness = PostgresHarness::start().await;
+    let database = &harness.database;
+    let project_id = Uuid::now_v7();
+    let actor_id = human_actor(database, "superseded-approval").await;
+    database
+        .create_project(project_id, "superseded approval project")
+        .await
+        .unwrap();
+    let issue_id = database
+        .create_issue_with_metadata(
+            project_id,
+            IssueCreate::minimal(Uuid::now_v7(), "RII-APPROVAL-4", "change before approval"),
+            actor_id,
+        )
+        .await
+        .unwrap();
+    let issue = database.get_issue(project_id, issue_id).await.unwrap();
+    let approval = database
+        .create_approval_request(
+            project_id,
+            issue_id,
+            actor_id,
+            issue.version,
+            ApprovalOperation::SetRank { rank: 9 },
+            Duration::hours(1),
+        )
+        .await
+        .unwrap();
+    database
+        .update_issue(
+            project_id,
+            issue_id,
+            IssueUpdate {
+                expected_version: issue.version,
+                title: Some("changed before approval".to_owned()),
+                ..Default::default()
+            },
+            actor_id,
+        )
+        .await
+        .unwrap();
+
+    let result = database
+        .decide_approval_request(project_id, approval.id, actor_id, true)
+        .await;
+
+    assert!(matches!(
+        result,
+        Err(riichi_persistence::Error::ApprovalSuperseded)
+    ));
+    let stored_state =
+        sqlx::query_scalar::<_, String>("SELECT state FROM approval_requests WHERE id = $1")
+            .bind(approval.id)
+            .fetch_one(database.pool())
+            .await
+            .unwrap();
+    assert_eq!(stored_state, "superseded");
+    assert_eq!(
+        database.get_issue(project_id, issue_id).await.unwrap().rank,
+        issue.rank
+    );
 }
 
 #[tokio::test]

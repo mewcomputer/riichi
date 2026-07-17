@@ -6,9 +6,9 @@ pub use documents::{tiptap_document_references, tiptap_plain_text, tiptap_saniti
 
 use chrono::Duration;
 use riichi_persistence::{
-    ApprovalRequest, Claim, ContextResponse, Database, Error, HumanQueueIssue, IssueCreate,
-    IssueEdge, IssueRecord, IssueUpdate, ReadyIssue, ReadySnapshot, RecoveryChecklist, Report,
-    ReportBatch, ReportBatchResult,
+    ApprovalOperation, ApprovalRequest, Claim, ContextResponse, Database, Error, HumanQueueIssue,
+    IssueCreate, IssueEdge, IssueRecord, IssueUpdate, ReadyIssue, ReadySnapshot, RecoveryChecklist,
+    Report, ReportBatch, ReportBatchResult,
 };
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
@@ -312,7 +312,7 @@ impl Application {
         issue_id: Uuid,
         requested_by: Uuid,
         target_version: i64,
-        proposed_operation: serde_json::Value,
+        operation: ApprovalOperation,
         lifetime: Duration,
     ) -> Result<ApprovalRequest, Error> {
         self.database
@@ -321,7 +321,7 @@ impl Application {
                 issue_id,
                 requested_by,
                 target_version,
-                proposed_operation,
+                operation,
                 lifetime,
             )
             .await
