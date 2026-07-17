@@ -1,0 +1,1744 @@
+{
+  "components": {
+    "schemas": {
+      "AgentRole": {
+        "properties": {
+          "active_session_count": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "capabilities": {
+            "type": "object"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "owner_account_id": {
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "project_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "revoked_at": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "team_id": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "AgentRoster": {
+        "properties": {
+          "roles": {
+            "items": {
+              "$ref": "#/components/schemas/AgentRole"
+            },
+            "type": "array"
+          },
+          "sessions": {
+            "items": {
+              "$ref": "#/components/schemas/AgentSession"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "roles",
+          "sessions"
+        ],
+        "type": "object"
+      },
+      "AgentSession": {
+        "properties": {
+          "agent_role_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "heartbeat_at": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "last_action_at": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "max_lifetime_ends_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "project_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "revoked_at": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "state": {
+            "type": "string"
+          },
+          "team_id": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ApplyLoroUpdateRequest": {
+        "properties": {
+          "idempotency_key": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "payload_base64": {
+            "type": "string"
+          },
+          "previous_frontiers": {
+            "items": {
+              "$ref": "#/components/schemas/LoroFrontier"
+            },
+            "type": "array"
+          },
+          "schema_version": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "update_id": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "update_id",
+          "previous_frontiers",
+          "payload_base64"
+        ],
+        "type": "object"
+      },
+      "ApplyLoroUpdateResponse": {
+        "properties": {
+          "accepted_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "document_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "previous_frontiers": {
+            "items": {
+              "$ref": "#/components/schemas/LoroFrontier"
+            },
+            "type": "array"
+          },
+          "replayed": {
+            "type": "boolean"
+          },
+          "resulting_frontiers": {
+            "items": {
+              "$ref": "#/components/schemas/LoroFrontier"
+            },
+            "type": "array"
+          },
+          "source": {
+            "type": "string"
+          },
+          "update_id": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "update_id",
+          "document_id",
+          "source",
+          "previous_frontiers",
+          "resulting_frontiers",
+          "accepted_at",
+          "replayed"
+        ],
+        "type": "object"
+      },
+      "ClaimRequest": {
+        "properties": {
+          "idempotency_key": {
+            "type": "string"
+          },
+          "issue_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "requested_ttl_seconds": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "issue_id",
+          "idempotency_key"
+        ],
+        "type": "object"
+      },
+      "ContextRequest": {
+        "properties": {
+          "document_frontiers": {
+            "items": {
+              "$ref": "#/components/schemas/LoroFrontier"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "issue_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "max_bytes": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "issue_id"
+        ],
+        "type": "object"
+      },
+      "InboxResponse": {
+        "properties": {
+          "notifications": {
+            "items": {
+              "$ref": "#/components/schemas/Notification"
+            },
+            "type": "array"
+          },
+          "unread_count": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "notifications",
+          "unread_count"
+        ],
+        "type": "object"
+      },
+      "LoroFrontier": {
+        "properties": {
+          "counter": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "peer_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "peer_id",
+          "counter"
+        ],
+        "type": "object"
+      },
+      "NavigationOrganization": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "logo_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "teams": {
+            "items": {
+              "$ref": "#/components/schemas/NavigationTeam"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "role",
+          "logo_url",
+          "teams"
+        ],
+        "type": "object"
+      },
+      "NavigationProject": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "role"
+        ],
+        "type": "object"
+      },
+      "NavigationResponse": {
+        "properties": {
+          "organizations": {
+            "items": {
+              "$ref": "#/components/schemas/NavigationOrganization"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "organizations"
+        ],
+        "type": "object"
+      },
+      "NavigationTeam": {
+        "properties": {
+          "emoji": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "projects": {
+            "items": {
+              "$ref": "#/components/schemas/NavigationProject"
+            },
+            "type": "array"
+          },
+          "views": {
+            "items": {
+              "$ref": "#/components/schemas/NavigationView"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "key",
+          "emoji",
+          "projects",
+          "views"
+        ],
+        "type": "object"
+      },
+      "NavigationView": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "Notification": {
+        "properties": {
+          "actor_id": {
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "issue_id": {
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "kind": {
+            "enum": [
+              "comment",
+              "approval",
+              "assignment",
+              "invitation",
+              "takeover",
+              "lease"
+            ],
+            "type": "string"
+          },
+          "payload": {
+            "type": "object"
+          },
+          "project_id": {
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "read_at": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "recipient_account_id": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "recipient_account_id",
+          "kind",
+          "payload",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "ReadyRequest": {
+        "properties": {
+          "limit": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "ReportBatchRequest": {
+        "properties": {
+          "fencing_token": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "type": "string"
+          },
+          "lease_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "operations": {
+            "items": {
+              "type": "object"
+            },
+            "maxItems": 50,
+            "type": "array"
+          }
+        },
+        "required": [
+          "lease_id",
+          "fencing_token",
+          "idempotency_key",
+          "operations"
+        ],
+        "type": "object"
+      },
+      "UnreadCountResponse": {
+        "properties": {
+          "unread_count": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "unread_count"
+        ],
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "Generated contract for Riichi agent and human collaboration APIs.",
+    "title": "Riichi API",
+    "version": "0.1.0"
+  },
+  "openapi": "3.0.3",
+  "paths": {
+    "/api/v1/approvals": {
+      "get": {
+        "operationId": "get_api_v1_approvals",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/attachment-uploads/{upload_id}": {
+      "put": {
+        "operationId": "put_api_v1_attachment-uploads__upload_id_",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/attachment-uploads/{upload_id}/complete": {
+      "post": {
+        "operationId": "post_api_v1_attachment-uploads__upload_id__complete",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/attachments/{attachment_id}": {
+      "get": {
+        "operationId": "get_api_v1_attachments__attachment_id_",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "operationId": "get_api_v1_auth_me",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/me/avatar": {
+      "delete": {
+        "operationId": "delete_api_v1_auth_me_avatar",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      },
+      "get": {
+        "operationId": "get_api_v1_auth_me_avatar",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      },
+      "put": {
+        "operationId": "put_api_v1_auth_me_avatar",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/claim": {
+      "post": {
+        "operationId": "claim",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClaimRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Fenced lease"
+          }
+        }
+      }
+    },
+    "/api/v1/context": {
+      "post": {
+        "operationId": "context",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContextRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Bounded provenance-aware context"
+          }
+        }
+      }
+    },
+    "/api/v1/context/{issue_id}/resources/{resource}": {
+      "get": {
+        "operationId": "get_api_v1_context__issue_id__resources__resource_",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/documents/{document_id}": {
+      "delete": {
+        "operationId": "delete_api_v1_documents__document_id_",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      },
+      "get": {
+        "operationId": "get_api_v1_documents__document_id_",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patch_api_v1_documents__document_id_",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/documents/{document_id}/agent-edit": {
+      "post": {
+        "operationId": "post_api_v1_documents__document_id__agent-edit",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/documents/{document_id}/agent-read": {
+      "post": {
+        "operationId": "post_api_v1_documents__document_id__agent-read",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/documents/{document_id}/attachments": {
+      "post": {
+        "operationId": "post_api_v1_documents__document_id__attachments",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/documents/{document_id}/backlinks": {
+      "get": {
+        "operationId": "get_api_v1_documents__document_id__backlinks",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/documents/{document_id}/loro-snapshot": {
+      "get": {
+        "operationId": "getDocumentLoroSnapshot",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "revision",
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Loro snapshot bytes",
+            "headers": {
+              "X-Riichi-Document-Frontiers": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Riichi-Document-Revision": {
+                "schema": {
+                  "format": "int64",
+                  "type": "integer"
+                }
+              },
+              "X-Riichi-Document-Schema-Version": {
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/documents/{document_id}/loro-sync": {
+      "get": {
+        "description": "Authenticated WebSocket upgrade for live Loro document synchronization.",
+        "operationId": "connectDocumentLoroSync",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "101": {
+            "description": "WebSocket protocol upgrade"
+          }
+        }
+      }
+    },
+    "/api/v1/documents/{document_id}/loro-updates": {
+      "post": {
+        "operationId": "applyDocumentLoroUpdate",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplyLoroUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplyLoroUpdateResponse"
+                }
+              }
+            },
+            "description": "Accepted or replayed Loro update"
+          }
+        }
+      }
+    },
+    "/api/v1/documents/{document_id}/references": {
+      "get": {
+        "operationId": "get_api_v1_documents__document_id__references",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      },
+      "put": {
+        "operationId": "put_api_v1_documents__document_id__references",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/documents/{document_id}/version": {
+      "get": {
+        "operationId": "get_api_v1_documents__document_id__version",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patch_api_v1_documents__document_id__version",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/inbox": {
+      "get": {
+        "operationId": "getInbox",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "unread_only",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboxResponse"
+                }
+              }
+            },
+            "description": "Durable human notifications"
+          }
+        }
+      }
+    },
+    "/api/v1/inbox/unread-count": {
+      "get": {
+        "operationId": "getInboxUnreadCount",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnreadCountResponse"
+                }
+              }
+            },
+            "description": "Unread notification count"
+          }
+        }
+      }
+    },
+    "/api/v1/inbox/{notification_id}/read": {
+      "post": {
+        "operationId": "markInboxNotificationRead",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "notification_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Notification marked read"
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/github/webhook": {
+      "post": {
+        "operationId": "post_api_v1_integrations_github_webhook",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/invites/accept": {
+      "post": {
+        "operationId": "post_api_v1_invites_accept",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/issues": {
+      "get": {
+        "operationId": "getAllIssues",
+        "responses": {
+          "200": {
+            "description": "Accessible human issues"
+          }
+        }
+      }
+    },
+    "/api/v1/issues/{issue_id}": {
+      "get": {
+        "operationId": "getGlobalIssue",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "issue_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Issue"
+          }
+        }
+      }
+    },
+    "/api/v1/navigation": {
+      "get": {
+        "operationId": "getNavigation",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NavigationResponse"
+                }
+              }
+            },
+            "description": "Accessible organizations, projects, and teams"
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organization_id}/documents": {
+      "get": {
+        "operationId": "get_api_v1_organizations__organization_id__documents",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      },
+      "post": {
+        "operationId": "post_api_v1_organizations__organization_id__documents",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organization_id}/logo": {
+      "delete": {
+        "operationId": "delete_api_v1_organizations__organization_id__logo",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      },
+      "get": {
+        "operationId": "get_api_v1_organizations__organization_id__logo",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      },
+      "put": {
+        "operationId": "put_api_v1_organizations__organization_id__logo",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/projects": {
+      "post": {
+        "operationId": "post_api_v1_projects",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/agent-roles": {
+      "post": {
+        "operationId": "post_api_v1_projects__project_id__agent-roles",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/agent-roles/{role_id}/revoke": {
+      "post": {
+        "operationId": "post_api_v1_projects__project_id__agent-roles__role_id__revoke",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/agent-sessions/{session_id}/revoke": {
+      "post": {
+        "operationId": "post_api_v1_projects__project_id__agent-sessions__session_id__revoke",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/approvals/{approval_id}/approve": {
+      "post": {
+        "operationId": "post_api_v1_projects__project_id__approvals__approval_id__approve",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/approvals/{approval_id}/reject": {
+      "post": {
+        "operationId": "post_api_v1_projects__project_id__approvals__approval_id__reject",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/documents": {
+      "get": {
+        "operationId": "get_api_v1_projects__project_id__documents",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      },
+      "post": {
+        "operationId": "post_api_v1_projects__project_id__documents",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/events": {
+      "get": {
+        "operationId": "get_api_v1_projects__project_id__events",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/holds/{hold_id}/release": {
+      "post": {
+        "operationId": "post_api_v1_projects__project_id__holds__hold_id__release",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/integrations/github/import": {
+      "post": {
+        "operationId": "post_api_v1_projects__project_id__integrations_github_import",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/invites": {
+      "post": {
+        "operationId": "post_api_v1_projects__project_id__invites",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/invites/{invite_id}/revoke": {
+      "post": {
+        "operationId": "post_api_v1_projects__project_id__invites__invite_id__revoke",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/issues": {
+      "post": {
+        "operationId": "createIssue",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Created issue"
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/issues/{issue_id}": {
+      "delete": {
+        "operationId": "deleteIssue",
+        "responses": {
+          "204": {
+            "description": "Deleted issue"
+          }
+        }
+      },
+      "get": {
+        "operationId": "getIssue",
+        "responses": {
+          "200": {
+            "description": "Issue"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateIssue",
+        "responses": {
+          "200": {
+            "description": "Updated issue",
+            "headers": {
+              "X-Riichi-Transaction-Id": {
+                "schema": {
+                  "format": "int64",
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/issues/{issue_id}/activity": {
+      "get": {
+        "operationId": "getIssueActivity",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "issue_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "maximum": 200,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bounded issue activity"
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/issues/{issue_id}/approvals": {
+      "post": {
+        "operationId": "post_api_v1_projects__project_id__issues__issue_id__approvals",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/issues/{issue_id}/collaborators": {
+      "get": {
+        "operationId": "get_api_v1_projects__project_id__issues__issue_id__collaborators",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      },
+      "post": {
+        "operationId": "post_api_v1_projects__project_id__issues__issue_id__collaborators",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/issues/{issue_id}/comments": {
+      "post": {
+        "operationId": "createComment",
+        "responses": {
+          "200": {
+            "description": "Created comment"
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/issues/{issue_id}/description-document": {
+      "get": {
+        "operationId": "get_api_v1_projects__project_id__issues__issue_id__description-document",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/issues/{issue_id}/edges": {
+      "post": {
+        "operationId": "post_api_v1_projects__project_id__issues__issue_id__edges",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/issues/{issue_id}/holds": {
+      "post": {
+        "operationId": "post_api_v1_projects__project_id__issues__issue_id__holds",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/issues/{issue_id}/quarantined-attempts": {
+      "get": {
+        "operationId": "get_api_v1_projects__project_id__issues__issue_id__quarantined-attempts",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/issues/{issue_id}/takeover": {
+      "post": {
+        "operationId": "post_api_v1_projects__project_id__issues__issue_id__takeover",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/outbox/{message_id}/redrive": {
+      "post": {
+        "operationId": "post_api_v1_projects__project_id__outbox__message_id__redrive",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/queue": {
+      "get": {
+        "operationId": "getProjectQueue",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project queue"
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/recovery/{checklist_id}/complete": {
+      "post": {
+        "operationId": "post_api_v1_projects__project_id__recovery__checklist_id__complete",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/sync/issues": {
+      "get": {
+        "description": "Authenticated Electric shape proxy for the project issue metadata read model.",
+        "operationId": "syncProjectIssueMetadata",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Electric shape stream"
+          },
+          "401": {
+            "description": "Human authentication required"
+          },
+          "403": {
+            "description": "Project membership required"
+          },
+          "503": {
+            "description": "Electric synchronization is not configured"
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/sync/issues/{issue_id}/activity": {
+      "get": {
+        "description": "Authenticated Electric shape proxy for the authoritative issue activity read model.",
+        "operationId": "syncIssueActivity",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "issue_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Electric shape stream"
+          },
+          "401": {
+            "description": "Human authentication required"
+          },
+          "403": {
+            "description": "Project membership required"
+          },
+          "503": {
+            "description": "Electric synchronization is not configured"
+          }
+        }
+      }
+    },
+    "/api/v1/ready": {
+      "post": {
+        "operationId": "ready",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReadyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Eligible work and snapshot exclusions"
+          }
+        }
+      }
+    },
+    "/api/v1/recovery/{issue_id}/quarantined-attempts": {
+      "get": {
+        "operationId": "get_api_v1_recovery__issue_id__quarantined-attempts",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/renew": {
+      "post": {
+        "operationId": "post_api_v1_renew",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/report": {
+      "post": {
+        "operationId": "post_api_v1_report",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/report/batch": {
+      "post": {
+        "operationId": "reportBatch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportBatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Idempotent report result"
+          }
+        }
+      }
+    },
+    "/api/v1/sync/approvals": {
+      "get": {
+        "description": "Authenticated Electric shape proxy for the current human approval queue.",
+        "operationId": "syncApprovals",
+        "responses": {
+          "200": {
+            "description": "Electric shape stream"
+          },
+          "401": {
+            "description": "Human authentication required"
+          },
+          "503": {
+            "description": "Electric synchronization is not configured"
+          }
+        }
+      }
+    },
+    "/api/v1/sync/documents": {
+      "get": {
+        "description": "Authenticated Electric shape proxy for all human-accessible document metadata and projections.",
+        "operationId": "syncHumanDocuments",
+        "responses": {
+          "200": {
+            "description": "Electric shape stream"
+          },
+          "401": {
+            "description": "Human authentication required"
+          },
+          "503": {
+            "description": "Electric synchronization is not configured"
+          }
+        }
+      }
+    },
+    "/api/v1/sync/inbox": {
+      "get": {
+        "description": "Authenticated Electric shape proxy for the current human notification inbox.",
+        "operationId": "syncInboxNotifications",
+        "responses": {
+          "200": {
+            "description": "Electric shape stream"
+          },
+          "401": {
+            "description": "Human authentication required"
+          },
+          "503": {
+            "description": "Electric synchronization is not configured"
+          }
+        }
+      }
+    },
+    "/api/v1/sync/issues": {
+      "get": {
+        "description": "Authenticated Electric shape proxy for all human-accessible issue queue rows.",
+        "operationId": "syncHumanIssues",
+        "responses": {
+          "200": {
+            "description": "Electric shape stream"
+          },
+          "401": {
+            "description": "Human authentication required"
+          },
+          "503": {
+            "description": "Electric synchronization is not configured"
+          }
+        }
+      }
+    },
+    "/api/v1/sync/navigation": {
+      "get": {
+        "description": "Authenticated Electric shape proxy for the current human navigation read model.",
+        "operationId": "syncNavigation",
+        "responses": {
+          "200": {
+            "description": "Electric shape stream"
+          },
+          "401": {
+            "description": "Human authentication required"
+          },
+          "503": {
+            "description": "Electric synchronization is not configured"
+          }
+        }
+      }
+    },
+    "/api/v1/teams/{team_id}": {
+      "patch": {
+        "operationId": "patch_api_v1_teams__team_id_",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/teams/{team_id}/agents": {
+      "get": {
+        "operationId": "getTeamAgentRoster",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentRoster"
+                }
+              }
+            },
+            "description": "Team agent roster"
+          }
+        }
+      }
+    },
+    "/api/v1/teams/{team_id}/documents": {
+      "get": {
+        "operationId": "get_api_v1_teams__team_id__documents",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      },
+      "post": {
+        "operationId": "post_api_v1_teams__team_id__documents",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/teams/{team_id}/issues": {
+      "get": {
+        "operationId": "getTeamIssues",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Team issues"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createTeamIssue",
+        "responses": {
+          "200": {
+            "description": "Created issue"
+          }
+        }
+      }
+    },
+    "/api/v1/teams/{team_id}/sync/agents": {
+      "get": {
+        "description": "Authenticated Electric shape proxy for the current human-visible agent roster and sessions for a team.",
+        "operationId": "syncHumanAgentRoster",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Electric shape stream"
+          },
+          "401": {
+            "description": "Human authentication required"
+          },
+          "403": {
+            "description": "Team membership required"
+          },
+          "503": {
+            "description": "Electric synchronization is not configured"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,21 @@
+[workspace]
+resolver = "3"
+members = [
+    "apps/api",
+    "apps/agent-cli",
+    "apps/worker",
+    "crates/domain",
+    "crates/application",
+    "crates/persistence",
+    "crates/storage",
+    "crates/auth",
+    "crates/integrations-github",
+]
+
+[workspace.package]
+edition = "2024"
+version = "0.1.0"
+license = "MIT"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"

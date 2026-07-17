@@ -1,0 +1,19 @@
+{
+  "name": "riichi",
+  "private": true,
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "dev": "pnpm --filter riichi-web dev",
+    "build": "pnpm --filter riichi-web build",
+    "generate:api": "./scripts/generate-api-types.sh",
+    "test": "pnpm --filter riichi-web test",
+    "test:watch": "pnpm --filter riichi-web test:watch",
+    "test:e2e": "./scripts/test-e2e.sh",
+    "test:e2e:browser": "./scripts/test-browser-e2e.sh",
+    "preview": "pnpm --filter riichi-web preview",
+    "typecheck": "pnpm --filter riichi-web exec tsc --noEmit"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.13.0"
+  }
+}

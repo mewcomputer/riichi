@@ -1,0 +1,12 @@
+/target/
+/node_modules/
+/dist/
+*.tsbuildinfo
+/.env
+/.env.*
+!.env.example
+/apps/*/.env
+/crates/*/.env
+/apps/web/test-results/
+/apps/web/playwright-report/
+/data/attachments/

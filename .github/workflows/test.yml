@@ -1,0 +1,80 @@
+name: test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  rust:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: riichi_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d riichi_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    env:
+      TEST_DATABASE_URL: postgres://postgres:password@127.0.0.1:5432/riichi_test
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo test --workspace
+      - run: cargo test --workspace -- --ignored --test-threads=1
+      - run: RIICHI_DATABASE_URL="$TEST_DATABASE_URL" cargo run --bin riichi-migrate
+      - run: psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/verify-projections.sql
+      - run: psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/pilot-metrics.sql
+      - name: exercise backup and restore verification
+        run: |
+          RIICHI_DATABASE_URL="$TEST_DATABASE_URL" scripts/backup.sh /tmp/riichi-ci.dump
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -c 'CREATE DATABASE riichi_restore'
+          RIICHI_RESTORE_DATABASE_URL="postgres://postgres:password@127.0.0.1:5432/riichi_restore" scripts/restore-verify.sh /tmp/riichi-ci.dump
+      - name: exercise populated backup and restore verification
+        run: scripts/test-populated-restore.sh
+      - name: exercise S3-compatible attachment storage
+        run: scripts/test-s3-storage.sh
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+      - uses: dtolnay/rust-toolchain@stable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter riichi-web exec playwright install --with-deps chromium
+      - run: pnpm run typecheck
+      - run: pnpm run test
+      - run: pnpm run build
+      - run: pnpm run test:e2e:browser
+
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+      - uses: dtolnay/rust-toolchain@stable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run generate:api
+      - run: git diff --exit-code -- apps/web/src/lib/generated
