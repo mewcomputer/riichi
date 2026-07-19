@@ -22,15 +22,23 @@ ARG VITE_ELECTRIC_SYNC_ENABLED=true
 ENV VITE_ELECTRIC_SYNC_ENABLED=$VITE_ELECTRIC_SYNC_ENABLED
 RUN pnpm build
 
-# ─── Runtime (api + worker share this image) ─────────────────────
-FROM debian:bookworm-slim AS runtime
+# ─── API runtime ────────────────────────────────────────────────
+FROM debian:bookworm-slim AS api
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=rust-builder /app/target/release/riichi-api /app/riichi-api
-COPY --from=rust-builder /app/target/release/riichi-worker /app/riichi-worker
 CMD ["./riichi-api"]
+
+# ─── Worker runtime ─────────────────────────────────────────────
+FROM debian:bookworm-slim AS worker
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY --from=rust-builder /app/target/release/riichi-worker /app/riichi-worker
+CMD ["./riichi-worker"]
 
 # ─── Web (nginx serves SPA, proxies to API) ──────────────────────
 FROM nginx:stable AS web

@@ -34,8 +34,7 @@ services:
   api:
     build:
       context: .
-      target: runtime
-    command: ["./riichi-api"]
+      target: api
     env_file: .env
     environment:
       # Override localhost URLs for Docker networking
@@ -59,8 +58,7 @@ services:
   worker:
     build:
       context: .
-      target: runtime
-    command: ["./riichi-worker"]
+      target: worker
     env_file: .env
     environment:
       RIICHI_DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/riichi
