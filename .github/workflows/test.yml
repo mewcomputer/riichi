@@ -67,11 +67,13 @@ jobs:
           node-version: 22
           cache: pnpm
       - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter riichi-web exec playwright install --with-deps chromium
       - run: pnpm run typecheck
       - run: pnpm run test
       - run: pnpm run build
+      - run: cargo build -p riichi-api --bin riichi-api
       - run: pnpm run test:e2e:browser
 
   contracts:
