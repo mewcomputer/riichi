@@ -95,6 +95,10 @@ export function matchesQueueView(item: QueueItem, view: QueueView, accountId?: s
   return item.assigneeAccountId !== null && item.assigneeAccountId === accountId;
 }
 
+export function addQueueLabel(labels: string[], label: string) {
+  return [...new Set([...labels, label])];
+}
+
 export function formatQueueAge(createdAt: string, now = new Date()) {
   const elapsedMinutes = Math.max(
     0,

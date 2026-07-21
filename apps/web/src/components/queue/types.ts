@@ -23,7 +23,8 @@ export type QueueMutationFeedback = {
 
 export type QueueBulkAction =
   | { kind: "status"; value: IssueStatus }
-  | { kind: "importance"; value: IssueImportance };
+  | { kind: "importance"; value: IssueImportance }
+  | { kind: "label"; value: string };
 
 export const stateCopy: Record<QueueState, string> = {
   ready: "Ready",

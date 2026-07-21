@@ -7,7 +7,7 @@ import { Archive, CircleDot, Layers3, UserRound } from "lucide-react";
 import { Kbd } from "@/components/ui/kbd";
 import { Button } from "@/components/ui/button";
 import { ApiError, createIssue, getCurrentUser } from "@/lib/api";
-import { matchesQueueAdvancedFilter, matchesQueueView, toQueueItem } from "../data/queue";
+import { addQueueLabel, matchesQueueAdvancedFilter, matchesQueueView, toQueueItem } from "../data/queue";
 import { useAllIssues } from "../hooks/use-all-issues";
 import { useTeamIssues } from "../hooks/use-team-issues";
 import { useAppLogout } from "../hooks/use-app-logout";
@@ -130,12 +130,29 @@ export function QueuePage({ initialFilter = "all", initialView = "all", teamId, 
       setFeedbackByIssueId((current) => ({ ...current, [item.issueId]: { state: "rejected", message: error instanceof Error ? error.message : "Update failed" } }));
     },
   });
+  const labelsMutation = useMutation({
+    mutationFn: async ({ item, label }: { item: ReturnType<typeof toQueueItem>; label: string }) => {
+      return updateIssueMetadata(metadataCollection, item.projectId, item.issueId, { labels: addQueueLabel(item.labels, label) });
+    },
+    onMutate: ({ item }) => {
+      setFeedbackByIssueId((current) => ({ ...current, [item.issueId]: { state: "pending" } }));
+    },
+    onSuccess: (_result, { item }) => {
+      setFeedbackByIssueId((current) => ({ ...current, [item.issueId]: { state: "confirmed" } }));
+      void queryClient.invalidateQueries({ queryKey: ["issues", "all"] });
+      if (teamId) void queryClient.invalidateQueries({ queryKey: ["issues", "team", teamId] });
+    },
+    onError: (error, { item }) => {
+      setFeedbackByIssueId((current) => ({ ...current, [item.issueId]: { state: "rejected", message: error instanceof Error ? error.message : "Update failed" } }));
+    },
+  });
   const applyBulkAction = async (action: QueueBulkAction) => {
     const selected = allItems.filter((item) => selectedIssueIds.has(item.issueId));
     await Promise.all(selected.map(async (item) => {
       try {
         if (action.kind === "status") await statusMutation.mutateAsync({ item, status: action.value });
-        else await importanceMutation.mutateAsync({ item, importance: action.value });
+        else if (action.kind === "importance") await importanceMutation.mutateAsync({ item, importance: action.value });
+        else await labelsMutation.mutateAsync({ item, label: action.value });
       } catch {
         // The individual mutation owns the rejected acknowledgement for this row.
       }
@@ -327,7 +344,7 @@ export function QueuePage({ initialFilter = "all", initialView = "all", teamId, 
         onRefresh={() => void queueQuery.refetch()}
         onCreate={() => setCreateOpen(true)}
       />
-      {selectedIssueIds.size > 0 ? <QueueBulkActionBar count={selectedIssueIds.size} onSelectAll={() => setSelectedIssueIds(new Set(visibleItems.map((item) => item.issueId)))} onClear={() => setSelectedIssueIds(new Set())} onApply={(action) => void applyBulkAction(action)} /> : null}
+      {selectedIssueIds.size > 0 ? <QueueBulkActionBar count={selectedIssueIds.size} labels={[...new Set(allItems.flatMap((item) => item.labels))].sort()} onSelectAll={() => setSelectedIssueIds(new Set(visibleItems.map((item) => item.issueId)))} onClear={() => setSelectedIssueIds(new Set())} onApply={(action) => void applyBulkAction(action)} /> : null}
       <QueueFilterChips state={searchState} items={allItems} onChange={(next) => updateSearch(next, true)} />
       <QueueList
         organizationSlug={organizationSlug}

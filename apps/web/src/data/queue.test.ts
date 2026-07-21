@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { HumanQueueIssue } from "@/lib/api";
-import { deriveQueueState, formatQueueAge, groupQueueItemsByStatus, matchesQueueAdvancedFilter, matchesQueueView, queueReason, toQueueItem } from "./queue";
+import { addQueueLabel, deriveQueueState, formatQueueAge, groupQueueItemsByStatus, matchesQueueAdvancedFilter, matchesQueueView, queueReason, toQueueItem } from "./queue";
 
 const baseIssue: HumanQueueIssue = {
   team_id: "team-id",
@@ -99,6 +99,11 @@ describe("queue state mapping", () => {
     expect(matchesQueueView(assigned, "my_work", "account-1")).toBe(true);
     expect(matchesQueueView(assigned, "my_work", "account-2")).toBe(false);
     expect(matchesQueueView(unassigned, "my_work", "account-1")).toBe(false);
+  });
+
+  it("adds a bulk label without duplicating existing labels", () => {
+    expect(addQueueLabel(["customer", "urgent"], "customer")).toEqual(["customer", "urgent"]);
+    expect(addQueueLabel(["customer"], "billing")).toEqual(["customer", "billing"]);
   });
 
   it("keeps issues in separate lifecycle status groups", () => {
