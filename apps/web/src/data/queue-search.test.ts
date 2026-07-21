@@ -1,0 +1,54 @@
+import { describe, expect, it } from "vitest";
+
+import { moveQueueSelection, parseQueueSearch, serializeQueueSearch } from "./queue-search";
+
+describe("queue search state", () => {
+  it("parses valid URL state and preserves the queue controls", () => {
+    expect(parseQueueSearch({
+      filter: "ready",
+      view: "backlog",
+      q: "ENG-42",
+      details: "0",
+      status: "blocked",
+      importance: "urgent",
+      team: "eng",
+      project: "project-1",
+    })).toEqual({
+      filter: "ready",
+      view: "backlog",
+      query: "ENG-42",
+      showDetails: false,
+      advancedFilter: { status: "blocked", importance: "urgent", teamKey: "eng", projectId: "project-1" },
+    });
+  });
+
+  it("falls back safely for malformed or missing URL values", () => {
+    expect(parseQueueSearch({ filter: "cycles", view: "week", status: "unknown", importance: 3, q: 42, team: "" })).toEqual({
+      filter: "all",
+      view: "all",
+      query: "",
+      showDetails: true,
+      advancedFilter: { status: "all", importance: "all", teamKey: "all", projectId: "all" },
+    });
+  });
+
+  it("omits defaults so copied URLs stay short", () => {
+    expect(serializeQueueSearch({
+      filter: "all",
+      view: "all",
+      query: "",
+      showDetails: true,
+      advancedFilter: { status: "all", importance: "all", teamKey: "all", projectId: "all" },
+    })).toEqual({});
+  });
+
+  it("moves from the edges without wrapping around", () => {
+    const ids = ["one", "two", "three"];
+    expect(moveQueueSelection(ids, null, 1)).toBe("one");
+    expect(moveQueueSelection(ids, null, -1)).toBe("three");
+    expect(moveQueueSelection(ids, "one", -1)).toBe("one");
+    expect(moveQueueSelection(ids, "three", 1)).toBe("three");
+    expect(moveQueueSelection(ids, "two", 1)).toBe("three");
+    expect(moveQueueSelection([], null, 1)).toBeNull();
+  });
+});

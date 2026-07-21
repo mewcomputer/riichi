@@ -11,6 +11,7 @@ const landingRoute = createRoute({
 const queueRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/$organizationSlug/issues',
+  validateSearch: (search) => search,
   component: lazyRouteComponent(() => import('./routes/queue'), 'WorkspaceQueuePage'),
 })
 const issueDetailRoute = createRoute({
@@ -61,6 +62,7 @@ const triageRoute = createRoute({
 const teamIssuesRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/$organizationSlug/teams/$teamKey/issues',
+  validateSearch: (search) => search,
   component: lazyRouteComponent(() => import('./routes/team-issues'), 'TeamIssuesPage'),
 })
 const teamResourceRoute = createRoute({

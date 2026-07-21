@@ -17,9 +17,9 @@ function StatusMark({ status }: { status: IssueStatus }) {
   return <Circle className="size-4 text-muted-foreground" />;
 }
 
-function QueueRow({ item, organizationSlug, showDetails, onOpenIssue, onStatusChange, onImportanceChange }: { item: QueueItem; organizationSlug: string; showDetails: boolean; onOpenIssue: (item: QueueItem) => void; onStatusChange: (item: QueueItem, status: IssueStatus) => void; onImportanceChange: (item: QueueItem, importance: IssueImportance) => void }) {
+function QueueRow({ item, organizationSlug, selected, showDetails, onOpenIssue, onStatusChange, onImportanceChange }: { item: QueueItem; organizationSlug: string; selected: boolean; showDetails: boolean; onOpenIssue: (item: QueueItem) => void; onStatusChange: (item: QueueItem, status: IssueStatus) => void; onImportanceChange: (item: QueueItem, importance: IssueImportance) => void }) {
   return (
-    <div className="grid min-h-10 grid-cols-[24px_64px_24px_minmax(220px,1fr)_auto] items-center gap-2 border-b border-border/40 px-4 text-xs transition-colors hover:bg-muted/35">
+    <div data-queue-item-id={item.issueId} className={`grid min-h-10 grid-cols-[24px_64px_24px_minmax(220px,1fr)_auto] items-center gap-2 border-b border-border/40 px-4 text-xs transition-colors hover:bg-muted/35 ${selected ? "bg-muted/45 ring-1 ring-inset ring-ring/60" : ""}`}>
       <IssueImportanceMenu importance={item.importance} compact onChange={(importance) => onImportanceChange(item, importance)} />
       <span className="truncate font-mono text-[11px] text-muted-foreground">{item.id}</span>
       <IssueStatusMenu
@@ -31,6 +31,7 @@ function QueueRow({ item, organizationSlug, showDetails, onOpenIssue, onStatusCh
         to="/$organizationSlug/teams/$teamKey/issues/$issueId"
         params={{ organizationSlug, teamKey: item.teamKey, issueId: item.issueId }}
         className="contents"
+        aria-current={selected ? "true" : undefined}
         onClick={() => onOpenIssue(item)}
       >
         <div className="flex min-w-0 items-center gap-2">
@@ -49,6 +50,7 @@ function QueueRow({ item, organizationSlug, showDetails, onOpenIssue, onStatusCh
 export function QueueList({
   organizationSlug,
   items,
+  selectedIssueId = null,
   showDetails,
   loading = false,
   error,
@@ -60,6 +62,7 @@ export function QueueList({
 }: {
   organizationSlug: string;
   items: QueueItem[];
+  selectedIssueId?: string | null;
   showDetails: boolean;
   loading?: boolean;
   error?: Error;
@@ -100,7 +103,7 @@ export function QueueList({
                 <span className="text-muted-foreground">{group.items.length}</span>
               </div>
               {group.items.map((item) => (
-                <QueueRow key={`${item.projectId}-${item.issueId}`} item={item} organizationSlug={organizationSlug} showDetails={showDetails} onOpenIssue={onOpenIssue} onStatusChange={onStatusChange} onImportanceChange={onImportanceChange} />
+                <QueueRow key={`${item.projectId}-${item.issueId}`} item={item} organizationSlug={organizationSlug} selected={item.issueId === selectedIssueId} showDetails={showDetails} onOpenIssue={onOpenIssue} onStatusChange={onStatusChange} onImportanceChange={onImportanceChange} />
               ))}
             </section>
           ))

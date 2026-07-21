@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useParams } from "@tanstack/react-router";
+import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { useLiveQuery } from "@tanstack/react-db";
 import { Archive, CircleDot, Layers3 } from "lucide-react";
 
@@ -20,7 +20,8 @@ import { QueueDisplayMenu, QueueFilterMenu } from "../components/queue/queue-con
 import { ProjectHeader, type ProjectViewTab } from "../components/project/project-header";
 import { ProjectShell } from "../components/project/project-shell";
 import { ProjectSidebar } from "../components/project/project-sidebar";
-import type { QueueAdvancedFilter, QueueFilter, QueueView } from "../components/queue/types";
+import type { QueueFilter, QueueView } from "../components/queue/types";
+import { moveQueueSelection, parseQueueSearch, serializeQueueSearch, type QueueSearchState } from "../data/queue-search";
 import { LazyIssueCreateDialog } from "../components/issues/lazy-issue-create-dialog";
 import type { IssueStatus } from "../components/issues/issue-status-menu";
 import type { IssueImportance } from "../components/issues/issue-importance-menu";
@@ -43,15 +44,23 @@ export function LegacyWorkspaceRedirect() {
 }
 
 export function QueuePage({ initialFilter = "all", initialView = "all", teamId, organizationSlug: organizationSlugProp }: { initialFilter?: QueueFilter; initialView?: QueueView; teamId?: string; organizationSlug?: string }) {
-  const [filter, setFilter] = useState<QueueFilter>(initialFilter);
-  const [view, setView] = useState<QueueView>(initialView);
-  const [query, setQuery] = useState("");
-  const [showDetails, setShowDetails] = useState(true);
-  const [advancedFilter, setAdvancedFilter] = useState<QueueAdvancedFilter>({ status: "all", importance: "all", teamKey: "all", projectId: "all" });
+  const rawSearch = useSearch({ strict: false }) as Record<string, unknown>;
+  const parsedSearch = useMemo(() => parseQueueSearch(rawSearch), [rawSearch]);
+  const searchState: QueueSearchState = useMemo(() => ({
+    ...parsedSearch,
+    filter: parsedSearch.filter === "all" ? initialFilter : parsedSearch.filter,
+    view: parsedSearch.view === "all" ? initialView : parsedSearch.view,
+  }), [initialFilter, initialView, parsedSearch]);
+  const { filter, view, query, showDetails, advancedFilter } = searchState;
+  const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const navigate = useNavigate();
   const appLogout = useAppLogout();
   const queryClient = useQueryClient();
+
+  const updateSearch = (next: Partial<QueueSearchState>, replace = false) => {
+    void navigate({ replace, search: () => serializeQueueSearch({ ...searchState, ...next }) as never });
+  };
 
   const meQuery = useQuery({
     queryKey: ["auth", "me"],
@@ -128,12 +137,12 @@ export function QueuePage({ initialFilter = "all", initialView = "all", teamId, 
   const commandGroups = useMemo(
     () => createQueueCommandGroups({
       onCreate: () => setCreateOpen(true),
-      onFilterChange: setFilter,
-      onViewChange: setView,
-      onQueryChange: setQuery,
+      onFilterChange: (nextFilter) => updateSearch({ filter: nextFilter }),
+      onViewChange: (nextView) => updateSearch({ view: nextView }),
+      onQueryChange: (nextQuery) => updateSearch({ query: nextQuery }, true),
       items: allItems,
     }),
-    [allItems],
+    [allItems, searchState],
   );
 
   useEffect(() => {
@@ -169,6 +178,38 @@ export function QueuePage({ initialFilter = "all", initialView = "all", teamId, 
       return matchesFilter && matchesQueueAdvancedFilter(item, advancedFilter) && matchesView && matchesQuery;
     });
   }, [allItems, advancedFilter, filter, query, view]);
+
+  useEffect(() => {
+    if (selectedIssueId && !visibleItems.some((item) => item.issueId === selectedIssueId)) {
+      setSelectedIssueId(visibleItems[0]?.issueId ?? null);
+    }
+  }, [selectedIssueId, visibleItems]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.matches("input, textarea, select, [contenteditable='true']") || event.metaKey || event.ctrlKey || event.altKey) return;
+      if (!["j", "k", "ArrowDown", "ArrowUp", "Enter", "Escape"].includes(event.key)) return;
+      event.preventDefault();
+      if (event.key === "Escape") {
+        setSelectedIssueId(null);
+        return;
+      }
+      if (event.key === "Enter") {
+        const selected = visibleItems.find((item) => item.issueId === selectedIssueId);
+        if (selected) {
+          selectProject(selected.projectId);
+          void navigate({ to: "/$organizationSlug/teams/$teamKey/issues/$issueId", params: { organizationSlug, teamKey: selected.teamKey, issueId: selected.issueId } });
+        }
+        return;
+      }
+      if (visibleItems.length === 0) return;
+      const direction = event.key === "j" || event.key === "ArrowDown" ? 1 : -1;
+      setSelectedIssueId(moveQueueSelection(visibleItems.map((item) => item.issueId), selectedIssueId, direction));
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [navigate, organizationSlug, selectProject, selectedIssueId, visibleItems]);
 
   const queueViews: ProjectViewTab[] = [
     { value: "all", label: "All issues", icon: Layers3 },
@@ -229,12 +270,12 @@ export function QueuePage({ initialFilter = "all", initialView = "all", teamId, 
       <ProjectHeader
         view={view}
         views={queueViews}
-        onViewChange={(nextView) => setView(nextView as QueueView)}
-        actions={<><QueueFilterMenu items={allItems} advancedFilter={advancedFilter} onAdvancedFilterChange={setAdvancedFilter} /><QueueDisplayMenu showDetails={showDetails} onShowDetailsChange={setShowDetails} /></>}
+        onViewChange={(nextView) => updateSearch({ view: nextView as QueueView })}
+        actions={<><QueueFilterMenu items={allItems} advancedFilter={advancedFilter} onAdvancedFilterChange={(nextFilter) => updateSearch({ advancedFilter: nextFilter })} /><QueueDisplayMenu showDetails={showDetails} onShowDetailsChange={(nextShowDetails) => updateSearch({ showDetails: nextShowDetails })} /></>}
       />
       <QueueToolbar
         query={query}
-        onQueryChange={setQuery}
+        onQueryChange={(nextQuery) => updateSearch({ query: nextQuery }, true)}
         refreshing={queueQuery.isFetching}
         onRefresh={() => void queueQuery.refetch()}
         onCreate={() => setCreateOpen(true)}
@@ -243,12 +284,14 @@ export function QueuePage({ initialFilter = "all", initialView = "all", teamId, 
       <QueueList
         organizationSlug={organizationSlug}
         items={visibleItems}
+        selectedIssueId={selectedIssueId}
         showDetails={showDetails}
         loading={loading}
         error={displayError instanceof Error ? displayError : undefined}
         onRetry={retry}
         authRequired={displayError instanceof ApiError && displayError.status === 401}
         onOpenIssue={(item) => {
+          setSelectedIssueId(item.issueId);
           selectProject(item.projectId);
           void navigate({ to: "/$organizationSlug/teams/$teamKey/issues/$issueId", params: { organizationSlug, teamKey: item.teamKey, issueId: item.issueId } });
         }}
