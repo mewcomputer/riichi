@@ -218,9 +218,17 @@ function IssueEditor({
       issueMutationChain.current = request.then(() => undefined, () => undefined);
       return request;
     },
+    onMutate: (input) => {
+      const field = input.status ? "status" : input.importance ? "priority" : input.spec_complete !== undefined ? "specification" : input.labels ? "labels" : input.assignee_account_id ? "assignee" : "issue";
+      setPropertyFeedback({ state: "pending", message: `Saving ${field}…` });
+    },
     onSuccess: (updated, input) => {
       if (input.assignee_account_id) setPropertyFeedback({ state: "confirmed", message: "Assigned to you. Server state is confirmed." });
       if (input.labels) setLabels(updated?.labels ?? input.labels);
+      if (input.status) setPropertyFeedback({ state: "confirmed", message: "Status updated. Server state is confirmed." });
+      if (input.importance) setPropertyFeedback({ state: "confirmed", message: "Priority updated. Server state is confirmed." });
+      if (input.spec_complete !== undefined) setPropertyFeedback({ state: "confirmed", message: "Specification state updated. Server state is confirmed." });
+      if (input.labels) setPropertyFeedback({ state: "confirmed", message: "Labels updated. Server state is confirmed." });
       setSyncConflict(null);
       if (updated) {
         setImportance(updated.importance);
@@ -246,6 +254,7 @@ function IssueEditor({
     onError: (error, input) => {
       if (input.assignee_account_id) setPropertyFeedback({ state: "rejected", message: error instanceof Error ? error.message : "Assignment was rejected." });
       if (input.labels) setLabels(issue.labels);
+      setPropertyFeedback({ state: "rejected", message: error instanceof Error ? error.message : "Issue change was rejected." });
       const current = queryClient.getQueryData<IssueRecord>(["issue", projectId, issue.id]) ?? issue;
       if (input.importance !== undefined) setImportance(current.importance);
       if (input.spec_complete !== undefined) setSpecComplete(current.spec_complete);
