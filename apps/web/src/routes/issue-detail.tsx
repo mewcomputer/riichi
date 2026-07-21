@@ -105,6 +105,8 @@ function IssueEditor({
   const [descriptionSyncState, setDescriptionSyncState] = useState<LoroSyncState>("disconnected");
   const [descriptionSchemaVersion, setDescriptionSchemaVersion] = useState(1);
   const [importance, setImportance] = useState(issue.importance);
+  const [labels, setLabels] = useState(issue.labels);
+  const [labelDraft, setLabelDraft] = useState("");
   const [specComplete, setSpecComplete] = useState(issue.spec_complete);
   const [syncConflict, setSyncConflict] = useState<IssueRecord | null>(null);
   const [takeoverReason, setTakeoverReason] = useState("");
@@ -123,6 +125,7 @@ function IssueEditor({
   const [relativeTimeNow, setRelativeTimeNow] = useState(() => new Date());
   const descriptionPersistence = useRef<LoroDocumentPersistence | null>(null);
   const initializedDescriptionId = useRef<string | null>(null);
+  useEffect(() => setLabels(issue.labels), [issue.id, issue.labels]);
   const allIssuesQuery = useAllIssues();
   const activityCollection = useMemo(
     () => createIssueActivityCollection(projectId, issue.id),
@@ -208,7 +211,7 @@ function IssueEditor({
   }, []);
   const issueMutationChain = useRef(Promise.resolve());
   const mutation = useMutation({
-    mutationFn: (input: { title?: string; status?: IssueRecord["status"]; importance?: IssueRecord["importance"]; spec_complete?: boolean; assignee_account_id?: string }) => {
+    mutationFn: (input: { title?: string; status?: IssueRecord["status"]; importance?: IssueRecord["importance"]; spec_complete?: boolean; labels?: string[]; assignee_account_id?: string }) => {
       const request = issueMutationChain.current.then(async () => {
         return updateIssueMetadata(metadataCollection, projectId, issue.id, input);
       });
@@ -217,6 +220,7 @@ function IssueEditor({
     },
     onSuccess: (updated, input) => {
       if (input.assignee_account_id) setPropertyFeedback({ state: "confirmed", message: "Assigned to you. Server state is confirmed." });
+      if (input.labels) setLabels(updated?.labels ?? input.labels);
       setSyncConflict(null);
       if (updated) {
         setImportance(updated.importance);
@@ -241,6 +245,7 @@ function IssueEditor({
     },
     onError: (error, input) => {
       if (input.assignee_account_id) setPropertyFeedback({ state: "rejected", message: error instanceof Error ? error.message : "Assignment was rejected." });
+      if (input.labels) setLabels(issue.labels);
       const current = queryClient.getQueryData<IssueRecord>(["issue", projectId, issue.id]) ?? issue;
       if (input.importance !== undefined) setImportance(current.importance);
       if (input.spec_complete !== undefined) setSpecComplete(current.spec_complete);
@@ -613,7 +618,7 @@ function IssueEditor({
           <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Team</span><span className="font-mono">{issue.display_key.split("-")[0]}</span></div>
           <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Project</span><span className="truncate">{issue.projects.find((project) => project.project_id === projectId)?.project_name ?? "Unassigned"}</span></div>
           <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Assignee</span><div className="flex items-center gap-2"><span className="font-mono text-xs">{issue.assignee_account_id?.slice(0, 8) ?? "Unassigned"}</span>{accountId && issue.assignee_account_id !== accountId ? <Button size="sm" variant="outline" className="h-8" onClick={() => { setPropertyFeedback({ state: "pending", message: "Assigning to you…" }); mutation.mutate({ assignee_account_id: accountId }); }} disabled={mutation.isPending}>Assign to me</Button> : null}</div></div>
-          <div className="flex items-start justify-between gap-3"><span className="pt-0.5 text-muted-foreground">Labels</span>{issue.labels.length > 0 ? <div className="flex flex-wrap justify-end gap-1">{issue.labels.map((label) => <Badge key={label} variant="secondary">{label}</Badge>)}</div> : <span className="text-muted-foreground/60">None</span>}</div>
+          <div className="grid gap-2"><div className="flex items-start justify-between gap-3"><span className="pt-0.5 text-muted-foreground">Labels</span>{labels.length > 0 ? <div className="flex flex-wrap justify-end gap-1">{labels.map((label) => <span key={label} className="inline-flex items-center gap-1"><Badge variant="secondary">{label}</Badge><button type="button" className="text-muted-foreground hover:text-destructive" aria-label={`Remove label ${label}`} onClick={() => { const next = labels.filter((current) => current !== label); setPropertyFeedback({ state: "pending", message: `Removing label ${label}…` }); mutation.mutate({ labels: next }); }} disabled={mutation.isPending}>×</button></span>)}</div> : <span className="text-muted-foreground/60">None</span>}</div><div className="flex gap-2"><Input aria-label="New label" value={labelDraft} onChange={(event) => setLabelDraft(event.target.value)} placeholder="Add label" className="h-8 text-xs" /><Button size="sm" variant="outline" className="h-8" onClick={() => { const nextLabel = labelDraft.trim(); if (!nextLabel || labels.includes(nextLabel)) return; setPropertyFeedback({ state: "pending", message: `Adding label ${nextLabel}…` }); setLabelDraft(""); mutation.mutate({ labels: [...labels, nextLabel] }); }} disabled={mutation.isPending || !labelDraft.trim()}>Add</Button></div></div>
           {propertyFeedback ? <p role={propertyFeedback.state === "rejected" ? "alert" : "status"} className={propertyFeedback.state === "rejected" ? "text-xs text-destructive" : propertyFeedback.state === "pending" ? "text-xs text-muted-foreground" : "text-xs text-emerald-400"}>{propertyFeedback.message}</p> : null}
         </div>
       </section>
