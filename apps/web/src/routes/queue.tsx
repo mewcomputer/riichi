@@ -62,6 +62,11 @@ export function QueuePage({ initialFilter = "all", initialView = "all", teamId, 
   const updateSearch = (next: Partial<QueueSearchState>, replace = false) => {
     void navigate({ replace, search: () => serializeQueueSearch({ ...searchState, ...next }) as never });
   };
+  const shortcuts = useMemo(() => [
+    { keys: ["c"], onTrigger: () => setCreateOpen(true) },
+    { keys: ["g", "b"], onTrigger: () => updateSearch({ view: "backlog" }) },
+    { keys: ["f", "r"], onTrigger: () => updateSearch({ filter: "ready" }) },
+  ], [searchState]);
 
   const meQuery = useQuery({
     queryKey: ["auth", "me"],
@@ -253,6 +258,7 @@ export function QueuePage({ initialFilter = "all", initialView = "all", teamId, 
   return (
     <ProjectShell
       commandGroups={commandGroups}
+      shortcuts={shortcuts}
       sidebar={
         <ProjectSidebar
           onCreate={() => setCreateOpen(true)}

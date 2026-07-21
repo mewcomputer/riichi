@@ -1,15 +1,20 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useLocation, useNavigate } from "@tanstack/react-router";
-import { Bell, Bot, Building2, CircleDot, ClipboardCheck, FileText, FolderKanban, Layers3, Settings2, ShieldAlert, UsersRound } from "lucide-react";
+import { Bell, Bot, Building2, CircleDot, ClipboardCheck, FileText, FolderKanban, Keyboard, Layers3, Settings2, ShieldAlert, UsersRound } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import type { CommandMenuGroup } from "@/components/command/command-menu";
 import type { DocumentRecord, HumanQueueIssue, NavigationResponse } from "@/lib/api";
 import { organizationSlug as toOrganizationSlug } from "@/lib/organization-slug";
+import { useNavigation } from "@/hooks/use-navigation";
+import { advanceShortcut } from "@/lib/keyboard-shortcuts";
 
 const LazyCommandMenu = lazy(() =>
   import("@/components/command/command-menu").then(({ CommandMenu }) => ({ default: CommandMenu })),
+);
+const LazyShortcutReferenceDialog = lazy(() =>
+  import("@/components/command/command-menu").then(({ ShortcutReferenceDialog }) => ({ default: ShortcutReferenceDialog })),
 );
 
 export function ProjectShell({
@@ -17,48 +22,75 @@ export function ProjectShell({
   children,
   footer,
   commandGroups = [],
+  shortcuts = [],
 }: {
   sidebar: ReactNode;
   children: ReactNode;
   footer?: ReactNode;
   commandGroups?: CommandMenuGroup[];
+  shortcuts?: Array<{ keys: string[]; onTrigger: () => void }>;
 }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [globalCommandOpen, setGlobalCommandOpen] = useState(false);
+  const [commandQuery, setCommandQuery] = useState("");
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const openCommandMenu = useCallback(() => setGlobalCommandOpen(true), []);
+  const pathSegments = location.pathname.split("/").filter(Boolean);
+  const organizationSlug = pathSegments[0] ?? "riichi";
+  const teamIndex = pathSegments.indexOf("teams");
+  const teamKey = teamIndex >= 0 ? pathSegments[teamIndex + 1] : undefined;
   useEffect(() => {
+    const shortcutBuffer: string[] = [];
+    let shortcutTimeout: number | undefined;
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
         openCommandMenu();
+        return;
+      }
+      if (globalCommandOpen || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
+      const target = event.target as HTMLElement | null;
+      if (target?.matches("input, textarea, select, [contenteditable='true']")) return;
+      const entries = [
+        { keys: ["g", "i"], onTrigger: () => void navigate({ to: "/$organizationSlug/issues", params: { organizationSlug } }) },
+        ...shortcuts,
+      ];
+      const result = advanceShortcut(shortcutBuffer, event.key, entries.map((entry) => entry.keys));
+      shortcutBuffer.splice(0, shortcutBuffer.length, ...result.buffer);
+      if (shortcutTimeout !== undefined) window.clearTimeout(shortcutTimeout);
+      if (result.buffer.length > 0) {
+        event.preventDefault();
+        shortcutTimeout = window.setTimeout(() => shortcutBuffer.splice(0), 900);
+      }
+      if (result.matched) {
+        event.preventDefault();
+        entries.find((entry) => entry.keys.join(" ") === result.matched)?.onTrigger();
       }
     };
     const onCommandEvent = () => openCommandMenu();
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("riichi:open-command-menu", onCommandEvent);
     return () => {
+      if (shortcutTimeout !== undefined) window.clearTimeout(shortcutTimeout);
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("riichi:open-command-menu", onCommandEvent);
     };
-  }, [openCommandMenu]);
+  }, [globalCommandOpen, navigate, openCommandMenu, organizationSlug, shortcuts]);
 
-  const pathSegments = location.pathname.split("/").filter(Boolean);
-  const organizationSlug = pathSegments[0] ?? "riichi";
-  const teamIndex = pathSegments.indexOf("teams");
-  const teamKey = teamIndex >= 0 ? pathSegments[teamIndex + 1] : undefined;
+  const navigationQuery = useNavigation();
   const commandSearchQuery = useQuery<{ navigation: NavigationResponse; issues: HumanQueueIssue[]; documents: DocumentRecord[] } | null>({
     queryKey: ["command-search", organizationSlug],
-    enabled: globalCommandOpen,
+    enabled: globalCommandOpen && commandQuery.trim().length >= 2 && Boolean(navigationQuery.data),
+    staleTime: 60_000,
     queryFn: async () => {
       const {
         getAllIssues,
-        getNavigation,
         listOrganizationDocuments,
         listProjectDocuments,
         listTeamDocuments,
       } = await import("@/lib/api");
-      const navigation = await getNavigation();
+      const navigation = navigationQuery.data;
       if (!navigation) throw new Error("Navigation data is unavailable");
       const organization = navigation.organizations.find((candidate) => toOrganizationSlug(candidate.name) === organizationSlug);
       if (!organization) return { navigation, issues: [], documents: [] };
@@ -129,6 +161,12 @@ export function ProjectShell({
         icon: Settings2,
         onSelect: () => void navigate({ to: "/$organizationSlug/settings", params: { organizationSlug } }),
       },
+      {
+        id: "shortcut-reference",
+        label: "Keyboard shortcuts",
+        icon: Keyboard,
+        onSelect: () => setShortcutsOpen(true),
+      },
     ];
     if (teamKey) {
       items.splice(1, 0, {
@@ -139,10 +177,10 @@ export function ProjectShell({
       });
     }
     return [{ id: "workspace-navigation", label: "Navigate", items }];
-  }, [navigate, organizationSlug, teamKey]);
+  }, [navigate, organizationSlug, setShortcutsOpen, teamKey]);
   const searchGroups = useMemo<CommandMenuGroup[]>(() => {
     const data = commandSearchQuery.data;
-    if (!data) return [];
+    if (!data || commandQuery.trim().length < 2) return [];
     const organization = data.navigation.organizations.find((candidate) => toOrganizationSlug(candidate.name) === organizationSlug);
     if (!organization) return [];
     const teamsById = new Map(organization.teams.map((team) => [team.id, team]));
@@ -220,7 +258,7 @@ export function ProjectShell({
       },
     ];
     return groups.filter((group) => group.items.length > 0);
-  }, [commandSearchQuery.data, navigate, organizationSlug]);
+  }, [commandQuery, commandSearchQuery.data, navigate, organizationSlug]);
   const globalCommandGroups = useMemo(
     () => [...navigationGroups, ...searchGroups, ...commandGroups],
     [commandGroups, navigationGroups, searchGroups],
@@ -241,11 +279,20 @@ export function ProjectShell({
           <Suspense fallback={null}>
             <LazyCommandMenu
               open={globalCommandOpen}
-              onOpenChange={setGlobalCommandOpen}
+              onOpenChange={(open) => {
+                setGlobalCommandOpen(open);
+                if (!open) setCommandQuery("");
+              }}
               groups={globalCommandGroups}
+              onSearchChange={setCommandQuery}
               placeholder="Search everything..."
               description="Search issues, projects, teams, documents, and actions."
             />
+          </Suspense>
+        ) : null}
+        {shortcutsOpen ? (
+          <Suspense fallback={null}>
+            <LazyShortcutReferenceDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
           </Suspense>
         ) : null}
       </SidebarProvider>

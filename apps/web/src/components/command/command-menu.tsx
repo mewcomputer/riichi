@@ -10,6 +10,8 @@ import {
   CommandList,
   CommandShortcut,
 } from "@/components/ui/command";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Kbd } from "@/components/ui/kbd";
 
 export type CommandMenuItem = {
   id: string;
@@ -30,19 +32,21 @@ export function CommandMenu({
   open,
   onOpenChange,
   groups,
+  onSearchChange,
   placeholder = "Search commands...",
   description = "Search for a command to run.",
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   groups: CommandMenuGroup[];
+  onSearchChange?: (query: string) => void;
   placeholder?: string;
   description?: string;
 }) {
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange} title="Command menu" description={description}>
       <Command className="rounded-xl border-0 bg-popover shadow-2xl">
-        <CommandInput placeholder={placeholder} />
+        <CommandInput placeholder={placeholder} onValueChange={onSearchChange} />
         <CommandList>
           <CommandEmpty>No results found.</CommandEmpty>
           {groups.map((group) => (
@@ -69,5 +73,31 @@ export function CommandMenu({
         </CommandList>
       </Command>
     </CommandDialog>
+  );
+}
+
+export function ShortcutReferenceDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  const shortcuts = [
+    ["⌘ K / Ctrl K", "Open command menu"],
+    ["G I", "Open all issues"],
+    ["G B", "Open backlog"],
+    ["F R", "Show ready issues"],
+    ["C", "Create an issue"],
+    ["J / K", "Move through queue issues"],
+    ["Enter", "Open the selected issue"],
+    ["Escape", "Clear queue selection"],
+  ];
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Keyboard shortcuts</DialogTitle>
+          <DialogDescription>Shortcuts are also available through the command menu.</DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-2">
+          {shortcuts.map(([keys, label]) => <div key={keys} className="flex items-center justify-between gap-4 text-sm"><span>{label}</span><Kbd>{keys}</Kbd></div>)}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
