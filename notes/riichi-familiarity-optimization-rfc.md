@@ -1,6 +1,6 @@
 # Riichi familiarity and interaction optimization RFC
 
-**Status:** proposed
+**Status:** accepted
 
 ## 1. Summary
 
@@ -23,6 +23,19 @@ planning entities.
 Cycles, milestones, estimates, velocity, capacity planning, and timeboxing
 remain deferred. They may be revisited later if teams show a repeated need for
 time-bounded planning rather than merely familiar navigation.
+
+## 2.1 Implementation status
+
+The first implementation slices preserve the server-authoritative write
+boundary while adding familiar navigation and feedback patterns:
+
+| Slice | Evidence | State |
+| --- | --- | --- |
+| Queue filters, URL state, keyboard movement, and saved views | Queue search tests, account-owned saved-view API, and generated API contract | shipped |
+| Per-item queue and issue mutation acknowledgement | Queue, issue-detail, and approval feedback states with frontend coverage | shipped |
+| Actionable inbox and approval lifecycle state | Server-enriched approval state scoped to current project access | shipped |
+| First-use terminology hints | Dismissible issue-detail hint for lease, fencing token, and approval | shipped |
+| Guided sample workspace with agent claim/report and recovery fixtures | Requires an authoritative agent-session issuance flow that the web surface does not yet expose | deferred |
 
 ## 3. Goals
 
