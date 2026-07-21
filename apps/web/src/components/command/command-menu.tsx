@@ -28,6 +28,18 @@ export type CommandMenuGroup = {
   items: CommandMenuItem[];
 };
 
+export const shortcutReference = [
+  ["⌘ K / Ctrl K", "Open command menu"],
+  ["G I", "Open all issues"],
+  ["G B", "Open backlog"],
+  ["G M", "Open my work"],
+  ["F R", "Show ready issues"],
+  ["C", "Create an issue"],
+  ["J / K", "Move through queue issues"],
+  ["Enter", "Open the selected issue"],
+  ["Escape", "Clear queue selection"],
+] as const;
+
 export function CommandMenu({
   open,
   onOpenChange,
@@ -77,17 +89,6 @@ export function CommandMenu({
 }
 
 export function ShortcutReferenceDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
-  const shortcuts = [
-    ["⌘ K / Ctrl K", "Open command menu"],
-    ["G I", "Open all issues"],
-    ["G B", "Open backlog"],
-    ["G M", "Open my work"],
-    ["F R", "Show ready issues"],
-    ["C", "Create an issue"],
-    ["J / K", "Move through queue issues"],
-    ["Enter", "Open the selected issue"],
-    ["Escape", "Clear queue selection"],
-  ];
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm">
@@ -96,7 +97,7 @@ export function ShortcutReferenceDialog({ open, onOpenChange }: { open: boolean;
           <DialogDescription>Shortcuts are also available through the command menu.</DialogDescription>
         </DialogHeader>
         <div className="grid gap-2">
-          {shortcuts.map(([keys, label]) => <div key={keys} className="flex items-center justify-between gap-4 text-sm"><span>{label}</span><Kbd>{keys}</Kbd></div>)}
+          {shortcutReference.map(([keys, label]) => <div key={keys} className="flex items-center justify-between gap-4 text-sm"><span>{label}</span><Kbd>{keys}</Kbd></div>)}
         </div>
       </DialogContent>
     </Dialog>

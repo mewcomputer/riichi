@@ -31,7 +31,7 @@ boundary while adding familiar navigation and feedback patterns:
 
 | Slice | Evidence | State |
 | --- | --- | --- |
-| Queue filters, URL state, keyboard movement, and saved views | Queue search tests, account-owned saved-view API, and generated API contract | shipped |
+| Queue filters, URL state, keyboard movement, and saved views | Queue search tests, shortcut-reference contract coverage, account-owned saved-view API, and generated API contract | shipped |
 | Per-item queue and issue mutation acknowledgement | Queue, issue-detail, and approval feedback states with frontend coverage | shipped |
 | Actionable inbox and approval lifecycle state | Server-enriched approval state scoped to current project access | shipped |
 | First-use terminology hints | Dismissible issue-detail hint for lease, fencing token, and approval | shipped |
