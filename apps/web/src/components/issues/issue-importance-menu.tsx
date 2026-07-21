@@ -48,12 +48,12 @@ export function IssueImportanceIcon({ importance }: { importance: IssueImportanc
   );
 }
 
-export function IssueImportanceMenu({ importance, onChange, disabled = false, compact = false }: { importance: IssueImportance; onChange: (importance: IssueImportance) => void; disabled?: boolean; compact?: boolean }) {
+export function IssueImportanceMenu({ importance, onChange, disabled = false, compact = false, className }: { importance: IssueImportance; onChange: (importance: IssueImportance) => void; disabled?: boolean; compact?: boolean; className?: string }) {
   const [open, setOpen] = useState(false);
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
-      <DropdownMenuTrigger render={<Button variant="ghost" size={compact ? "icon-sm" : "sm"} className={compact ? "text-muted-foreground" : "gap-1.5 px-2 text-xs text-muted-foreground"} disabled={disabled} aria-label={compact ? `Change importance, currently ${issueImportanceLabel(importance)}` : undefined} />}>
+      <DropdownMenuTrigger render={<Button variant="ghost" size={compact ? "icon-sm" : "sm"} className={`${compact ? "text-muted-foreground" : "gap-1.5 px-2 text-xs text-muted-foreground"} ${className ?? ""}`} disabled={disabled} aria-label={compact ? `Change importance, currently ${issueImportanceLabel(importance)}` : undefined} />}>
         <IssueImportanceIcon importance={importance} /> {compact ? null : <>{issueImportanceLabel(importance)} <ChevronDown /></>}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-44">

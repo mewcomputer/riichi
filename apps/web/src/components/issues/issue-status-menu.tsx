@@ -33,18 +33,20 @@ export function IssueStatusMenu({
   onChange,
   disabled = false,
   icon,
+  className,
 }: {
   status: IssueStatus;
   onChange: (status: IssueStatus) => void;
   disabled?: boolean;
   icon?: React.ReactNode;
+  className?: string;
 }) {
   const [open, setOpen] = useState(false);
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger
-        render={<Button variant={icon ? "ghost" : "outline"} size={icon ? "icon-sm" : "sm"} className={icon ? "text-muted-foreground hover:text-foreground" : "gap-1.5"} disabled={disabled} aria-label={icon ? `Change status, currently ${issueStatusLabel(status)}` : undefined} />}
+        render={<Button variant={icon ? "ghost" : "outline"} size={icon ? "icon-sm" : "sm"} className={`${icon ? "text-muted-foreground hover:text-foreground" : "gap-1.5"} ${className ?? ""}`} disabled={disabled} aria-label={icon ? `Change status, currently ${issueStatusLabel(status)}` : undefined} />}
       >
         {icon ?? <>{issueStatusLabel(status)} <ChevronDown /></>}
       </DropdownMenuTrigger>

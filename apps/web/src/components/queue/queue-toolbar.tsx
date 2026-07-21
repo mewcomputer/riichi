@@ -18,9 +18,9 @@ export function QueueToolbar({
 }) {
   return (
     <>
-      <div className="flex h-11 shrink-0 items-center justify-between border-b border-border/60 px-4">
-        <div className="flex min-w-0 items-center gap-2">
-          <div className="relative w-48">
+      <div className="flex min-h-11 shrink-0 items-center justify-between gap-2 border-b border-border/60 px-3 sm:px-4">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <div className="relative w-full sm:w-48">
             <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={query}
@@ -31,11 +31,11 @@ export function QueueToolbar({
           </div>
         </div>
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon-sm" className="text-muted-foreground" aria-label="Refresh queue" onClick={onRefresh} disabled={refreshing}>
+          <Button variant="ghost" size="icon-sm" className="size-11 text-muted-foreground sm:size-7" aria-label="Refresh queue" onClick={onRefresh} disabled={refreshing}>
             <RefreshCw className={refreshing ? "animate-spin" : ""} />
           </Button>
-          <Button size="sm" className="h-7 gap-1.5 px-2.5 text-xs" onClick={onCreate}>
-            <Plus /> New issue
+          <Button size="sm" className="h-11 gap-1.5 px-2 sm:h-7 sm:px-2.5" onClick={onCreate} aria-label="New issue">
+            <Plus /><span className="hidden sm:inline">New issue</span>
           </Button>
         </div>
       </div>

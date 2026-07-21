@@ -375,8 +375,8 @@ function IssueEditor({
           <IssueStatusMenu status={issue.status} disabled={mutation.isPending} onChange={(status) => mutation.mutate({ status })} />
         </>}
       />
-      <div className="mx-auto grid w-full max-w-6xl gap-6 px-8 py-6">
-      <div className="grid min-w-0 gap-10 lg:grid-cols-[minmax(0,1fr)_220px]">
+      <div className="mx-auto grid w-full max-w-6xl gap-6 px-4 py-5 sm:px-6 sm:py-6 lg:px-8">
+      <div className="grid min-w-0 gap-6 lg:gap-10 lg:grid-cols-[minmax(0,1fr)_220px]">
         <main className="min-w-0">
           <div className="grid gap-4">
         <RichTextTitleEditor value={title} onChange={setTitle} />
@@ -399,17 +399,17 @@ function IssueEditor({
           {syncConflict ? <div className="flex items-center justify-between gap-3 rounded-md border border-orange-400/30 bg-orange-400/5 px-3 py-2 text-xs">
             <span>This issue changed elsewhere. Keep your draft or use the server version.</span>
             <div className="flex shrink-0 gap-2">
-              <Button size="sm" variant="outline" onClick={() => { setSyncConflict(null); mutation.mutate({ title: title.trim() }); }}>Keep my draft</Button>
-              <Button size="sm" onClick={() => { setTitle(syncConflict.title); setBody(syncConflict.body); setImportance(syncConflict.importance); setSpecComplete(syncConflict.spec_complete); setSyncConflict(null); }}>Use server version</Button>
+              <Button size="sm" className="h-11 sm:h-7" variant="outline" onClick={() => { setSyncConflict(null); mutation.mutate({ title: title.trim() }); }}>Keep my draft</Button>
+              <Button size="sm" className="h-11 sm:h-7" onClick={() => { setTitle(syncConflict.title); setBody(syncConflict.body); setImportance(syncConflict.importance); setSpecComplete(syncConflict.spec_complete); setSyncConflict(null); }}>Use server version</Button>
             </div>
           </div> : null}
       <section className="grid gap-3 border-t border-border/60 pt-5">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-sm font-medium">Sub-issues</h2>
             <p className="text-xs text-muted-foreground">Smaller pieces of work belonging to this issue.</p>
           </div>
-          {canComment ? <Button variant="outline" size="sm" onClick={() => setSubissueDialogOpen(true)}>Add sub-issue</Button> : null}
+          {canComment ? <Button variant="outline" size="sm" className="h-11 sm:h-7" onClick={() => setSubissueDialogOpen(true)}>Add sub-issue</Button> : null}
         </div>
         {issue.children.length > 0 ? <div className="grid gap-1">
           {issue.children.map((child) => (
@@ -436,7 +436,7 @@ function IssueEditor({
       <details className="group rounded-lg border border-border/60 bg-card/20 p-3">
         <summary className="cursor-pointer list-none text-xs font-medium marker:hidden">Ownership and recovery</summary>
         <div className="mt-3 grid gap-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-xs text-muted-foreground">
               {issue.active_lease_id
@@ -445,20 +445,20 @@ function IssueEditor({
             </p>
           </div>
           {issue.active_lease_id ? (
-            <div className="flex items-center gap-2">
-              <Input aria-label="Takeover reason" value={takeoverReason} onChange={(event) => setTakeoverReason(event.target.value)} placeholder="Reason for takeover" className="h-8 w-52 text-xs" />
-              <Button size="sm" variant="destructive" onClick={() => takeoverMutation.mutate()} disabled={takeoverMutation.isPending || !takeoverReason.trim()}>
+            <div className="grid gap-2 sm:flex sm:items-center">
+              <Input aria-label="Takeover reason" value={takeoverReason} onChange={(event) => setTakeoverReason(event.target.value)} placeholder="Reason for takeover" className="h-11 w-full text-xs sm:h-8 sm:w-52" />
+              <Button size="sm" variant="destructive" className="h-11 sm:h-8" onClick={() => takeoverMutation.mutate()} disabled={takeoverMutation.isPending || !takeoverReason.trim()}>
                 {takeoverMutation.isPending ? "Taking over..." : "Take over"}
               </Button>
             </div>
           ) : null}
         </div>
         {checklist ? (
-          <div className="flex items-center justify-between rounded-md border border-orange-400/30 bg-orange-400/5 px-3 py-2 text-xs">
+            <div className="flex flex-col gap-3 rounded-md border border-orange-400/30 bg-orange-400/5 px-3 py-3 text-xs sm:flex-row sm:items-center sm:justify-between">
             <span>Recovery checklist open: {checklist.reason}</span>
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={() => recoveryMutation.mutate("release")} disabled={recoveryMutation.isPending}>Reopen for dispatch</Button>
-              <Button size="sm" onClick={() => recoveryMutation.mutate("complete")} disabled={recoveryMutation.isPending}>Complete recovery</Button>
+            <div className="grid gap-2 sm:flex">
+              <Button size="sm" className="h-11 sm:h-8" variant="outline" onClick={() => recoveryMutation.mutate("release")} disabled={recoveryMutation.isPending}>Reopen for dispatch</Button>
+              <Button size="sm" className="h-11 sm:h-8" onClick={() => recoveryMutation.mutate("complete")} disabled={recoveryMutation.isPending}>Complete recovery</Button>
             </div>
           </div>
         ) : null}
@@ -470,23 +470,23 @@ function IssueEditor({
           <summary className="cursor-pointer list-none text-xs font-medium marker:hidden">Collaborators</summary>
           <div className="mt-3 grid gap-3">
             <p className="text-xs text-muted-foreground">Delegate a bounded capability under the current lease fence.</p>
-          <div className="flex flex-wrap items-center gap-2">
-            <select aria-label="Collaborator session" value={collaboratorSessionId} onChange={(event) => setCollaboratorSessionId(event.target.value)} className="h-8 min-w-48 rounded-md border border-input bg-background px-2 text-xs">
+          <div className="grid gap-2 sm:flex sm:flex-wrap sm:items-center">
+            <select aria-label="Collaborator session" value={collaboratorSessionId} onChange={(event) => setCollaboratorSessionId(event.target.value)} className="h-11 min-w-0 w-full rounded-md border border-input bg-background px-2 text-xs sm:h-8 sm:w-auto sm:min-w-48">
               <option value="">Choose active session</option>
               {projectRoster?.sessions.filter((session) => session.state === "active").map((session) => <option key={session.id} value={session.id}>{session.id.slice(0, 12)}</option>)}
             </select>
-            <select aria-label="Collaborator capability" value={collaboratorCapability} onChange={(event) => setCollaboratorCapability(event.target.value)} className="h-8 rounded-md border border-input bg-background px-2 text-xs">
+            <select aria-label="Collaborator capability" value={collaboratorCapability} onChange={(event) => setCollaboratorCapability(event.target.value)} className="h-11 min-w-0 w-full rounded-md border border-input bg-background px-2 text-xs sm:h-8 sm:w-auto">
               {['comment', 'request_spec', 'discover', 'complete', 'release', 'edit_issue', 'manage_relationships', 'recovery_review'].map((capability) => <option key={capability} value={capability}>{capability}</option>)}
             </select>
-            <select aria-label="Collaborator grant mode" value={collaboratorMode} onChange={(event) => setCollaboratorMode(event.target.value as typeof collaboratorMode)} className="h-8 rounded-md border border-input bg-background px-2 text-xs">
+            <select aria-label="Collaborator grant mode" value={collaboratorMode} onChange={(event) => setCollaboratorMode(event.target.value as typeof collaboratorMode)} className="h-11 min-w-0 w-full rounded-md border border-input bg-background px-2 text-xs sm:h-8 sm:w-auto">
               <option value="auto">Automatic</option><option value="approval_required">Approval required</option>
             </select>
-            <Button size="sm" variant="outline" onClick={() => grantCollaboratorMutation.mutate()} disabled={grantCollaboratorMutation.isPending || !collaboratorSessionId}>Grant</Button>
+            <Button size="sm" variant="outline" className="h-11 sm:h-8" onClick={() => grantCollaboratorMutation.mutate()} disabled={grantCollaboratorMutation.isPending || !collaboratorSessionId}>Grant</Button>
           </div>
           {issue.collaborators.filter((collaborator) => !collaborator.revoked_at).map((collaborator) => (
             <div key={`${collaborator.session_id}-${collaborator.capability}`} className="flex items-center justify-between text-xs">
               <span><span className="font-mono">{collaborator.session_id.slice(0, 12)}</span><span className="ml-2 text-muted-foreground">{collaborator.capability} · {collaborator.grant_mode}</span></span>
-              <Button size="sm" variant="ghost" className="h-7 text-destructive" onClick={() => revokeCollaboratorMutation.mutate({ sessionId: collaborator.session_id, capability: collaborator.capability })} disabled={revokeCollaboratorMutation.isPending}>Revoke</Button>
+              <Button size="sm" variant="ghost" className="h-11 sm:h-7 text-destructive" onClick={() => revokeCollaboratorMutation.mutate({ sessionId: collaborator.session_id, capability: collaborator.capability })} disabled={revokeCollaboratorMutation.isPending}>Revoke</Button>
             </div>
           ))}
           {grantCollaboratorMutation.error || revokeCollaboratorMutation.error ? <span className="text-xs text-destructive">{(grantCollaboratorMutation.error ?? revokeCollaboratorMutation.error)?.message}</span> : null}
@@ -497,12 +497,12 @@ function IssueEditor({
         <summary className="cursor-pointer list-none text-xs font-medium marker:hidden">Approval request</summary>
         <div className="mt-3 grid gap-3">
           <p className="text-xs text-muted-foreground">Propose a rank change against version {issue.version}.</p>
-        <div className="flex items-center gap-2">
-          <Input aria-label="Proposed rank" value={proposedRank} onChange={(event) => setProposedRank(event.target.value)} className="h-8 w-24 text-xs" type="number" min="0" />
-          <Button size="sm" variant="outline" onClick={() => approvalMutation.mutate()} disabled={approvalMutation.isPending || !Number.isInteger(Number(proposedRank))}>Request approval</Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Input aria-label="Proposed rank" value={proposedRank} onChange={(event) => setProposedRank(event.target.value)} className="h-11 w-24 text-xs sm:h-8" type="number" min="0" />
+          <Button size="sm" className="h-11 sm:h-8" variant="outline" onClick={() => approvalMutation.mutate()} disabled={approvalMutation.isPending || !Number.isInteger(Number(proposedRank))}>Request approval</Button>
           {approval ? <Badge variant={approval.state === "approved" ? "default" : "outline"}>Request {approval.state}</Badge> : null}
-          {approval?.state === "pending" && canApprove ? <Button size="sm" onClick={() => decisionMutation.mutate(true)} disabled={decisionMutation.isPending}>Approve</Button> : null}
-          {approval?.state === "pending" && canApprove ? <Button size="sm" variant="ghost" onClick={() => decisionMutation.mutate(false)} disabled={decisionMutation.isPending}>Reject</Button> : null}
+          {approval?.state === "pending" && canApprove ? <Button size="sm" className="h-11 sm:h-7" onClick={() => decisionMutation.mutate(true)} disabled={decisionMutation.isPending}>Approve</Button> : null}
+          {approval?.state === "pending" && canApprove ? <Button size="sm" className="h-11 sm:h-7" variant="ghost" onClick={() => decisionMutation.mutate(false)} disabled={decisionMutation.isPending}>Reject</Button> : null}
         </div>
         {approvalMutation.error || decisionMutation.error ? <span className="text-xs text-destructive">{(approvalMutation.error ?? decisionMutation.error)?.message}</span> : null}
         </div>
@@ -511,27 +511,27 @@ function IssueEditor({
         <summary className="cursor-pointer list-none text-xs font-medium marker:hidden">Triage</summary>
         <div className="mt-3 grid gap-4">
           <p className="text-xs text-muted-foreground">Manage holds and blocking relationships.</p>
-        <div className="flex flex-wrap items-center gap-2">
-          <Input aria-label="Hold reason" value={holdReason} onChange={(event) => setHoldReason(event.target.value)} placeholder="Reason for hold" className="h-8 w-56 text-xs" />
-          <Button size="sm" variant="outline" onClick={() => holdMutation.mutate()} disabled={holdMutation.isPending || !holdReason.trim()}>Place hold</Button>
+        <div className="grid gap-2 sm:flex sm:flex-wrap sm:items-center">
+          <Input aria-label="Hold reason" value={holdReason} onChange={(event) => setHoldReason(event.target.value)} placeholder="Reason for hold" className="h-11 w-full text-xs sm:h-8 sm:w-56" />
+          <Button size="sm" className="h-11 sm:h-8" variant="outline" onClick={() => holdMutation.mutate()} disabled={holdMutation.isPending || !holdReason.trim()}>Place hold</Button>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <select aria-label="Blocking issue" value={blockerIssueId} onChange={(event) => setBlockerIssueId(event.target.value)} className="h-8 min-w-56 rounded-md border border-input bg-background px-2 text-xs">
+        <div className="grid gap-2 sm:flex sm:flex-wrap sm:items-center">
+          <select aria-label="Blocking issue" value={blockerIssueId} onChange={(event) => setBlockerIssueId(event.target.value)} className="h-11 min-w-0 w-full rounded-md border border-input bg-background px-2 text-xs sm:h-8 sm:w-auto sm:min-w-56">
             <option value="">Choose a blocking issue</option>
             {allIssuesQuery.data?.filter((candidate) => candidate.id !== issue.id).map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.display_key} · {candidate.title}</option>)}
           </select>
-          <Button size="sm" variant="outline" onClick={() => edgeMutation.mutate()} disabled={edgeMutation.isPending || !blockerIssueId.trim()}>Add blocker</Button>
+          <Button size="sm" className="h-11 sm:h-8" variant="outline" onClick={() => edgeMutation.mutate()} disabled={edgeMutation.isPending || !blockerIssueId.trim()}>Add blocker</Button>
         </div>
         {issue.holds.filter((hold) => !hold.released_at).map((hold) => (
           <div key={hold.id} className="flex items-center justify-between text-xs">
             <span><Badge variant="outline">{hold.hold_type}</Badge><span className="ml-2 text-muted-foreground">{hold.reason}</span></span>
-            <Button size="sm" variant="ghost" className="h-7" onClick={() => releaseHoldMutation.mutate(hold.id)} disabled={releaseHoldMutation.isPending}>Release</Button>
+            <Button size="sm" variant="ghost" className="h-11 sm:h-7" onClick={() => releaseHoldMutation.mutate(hold.id)} disabled={releaseHoldMutation.isPending}>Release</Button>
           </div>
         ))}
         {issue.edges.filter((edge) => edge.edge_type === "blocks").map((edge) => (
           <div key={edge.id} className="flex items-center justify-between text-xs">
             <span><Badge variant="outline">blocks</Badge><span className="ml-2 font-mono text-muted-foreground">{allIssuesQuery.data?.find((candidate) => candidate.id === (edge.target_issue_id === issue.id ? edge.source_issue_id : edge.target_issue_id))?.display_key ?? "linked issue"}</span></span>
-            <Button size="sm" variant="ghost" className="h-7" onClick={() => removeEdgeMutation.mutate(edge.id)} disabled={removeEdgeMutation.isPending}>Remove</Button>
+            <Button size="sm" variant="ghost" className="h-11 sm:h-7" onClick={() => removeEdgeMutation.mutate(edge.id)} disabled={removeEdgeMutation.isPending}>Remove</Button>
           </div>
         ))}
         {holdMutation.error || edgeMutation.error || releaseHoldMutation.error || removeEdgeMutation.error ? <span className="text-xs text-destructive">{(holdMutation.error ?? edgeMutation.error ?? releaseHoldMutation.error ?? removeEdgeMutation.error)?.message}</span> : null}
@@ -565,7 +565,7 @@ function IssueEditor({
             <span className={specComplete && !issue.specification_changed_since_review ? "text-emerald-400" : "text-orange-400"}>
               {specComplete ? (issue.specification_changed_since_review ? "Specification changed" : "Ready for dispatch") : "Needs specification"}
             </span>
-            <Button size="sm" variant="outline" onClick={() => { const next = !specComplete || issue.specification_changed_since_review; setSpecComplete(next); mutation.mutate({ spec_complete: next }); }} disabled={mutation.isPending}>
+            <Button size="sm" className="h-11 sm:h-7" variant="outline" onClick={() => { const next = !specComplete || issue.specification_changed_since_review; setSpecComplete(next); mutation.mutate({ spec_complete: next }); }} disabled={mutation.isPending}>
               {specComplete ? (issue.specification_changed_since_review ? "Mark reviewed" : "Reopen") : "Mark ready"}
             </Button>
           </div>

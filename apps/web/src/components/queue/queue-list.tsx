@@ -20,12 +20,13 @@ function StatusMark({ status }: { status: IssueStatus }) {
 
 function QueueRow({ item, organizationSlug, selected, feedback, showDetails, onOpenIssue, onStatusChange, onImportanceChange }: { item: QueueItem; organizationSlug: string; selected: boolean; feedback?: QueueMutationFeedback; showDetails: boolean; onOpenIssue: (item: QueueItem) => void; onStatusChange: (item: QueueItem, status: IssueStatus) => void; onImportanceChange: (item: QueueItem, importance: IssueImportance) => void }) {
   return (
-    <div data-queue-item-id={item.issueId} className={`grid min-h-10 grid-cols-[24px_64px_24px_minmax(220px,1fr)_auto] items-center gap-2 border-b border-border/40 px-4 text-xs transition-colors hover:bg-muted/35 ${selected ? "bg-muted/45 ring-1 ring-inset ring-ring/60" : ""}`}>
-      <IssueImportanceMenu importance={item.importance} compact onChange={(importance) => onImportanceChange(item, importance)} />
-      <span className="truncate font-mono text-[11px] text-muted-foreground">{item.id}</span>
-      <IssueStatusMenu
-        status={item.status}
-        icon={<StatusMark status={item.status} />}
+    <div data-queue-item-id={item.issueId} className={`grid min-h-11 grid-cols-[24px_24px_minmax(0,1fr)_auto] items-center gap-2 border-b border-border/40 px-3 text-xs transition-colors hover:bg-muted/35 sm:min-h-10 sm:grid-cols-[24px_64px_24px_minmax(220px,1fr)_auto] sm:px-4 ${selected ? "bg-muted/45 ring-1 ring-inset ring-ring/60" : ""}`}>
+      <IssueImportanceMenu importance={item.importance} compact className="size-11 sm:size-7" onChange={(importance) => onImportanceChange(item, importance)} />
+      <span className="hidden truncate font-mono text-[11px] text-muted-foreground sm:block">{item.id}</span>
+        <IssueStatusMenu
+          status={item.status}
+          icon={<StatusMark status={item.status} />}
+          className="size-11 sm:size-7"
         onChange={(status) => onStatusChange(item, status)}
       />
       <Link
@@ -36,6 +37,7 @@ function QueueRow({ item, organizationSlug, selected, feedback, showDetails, onO
         onClick={() => onOpenIssue(item)}
       >
         <div className="flex min-w-0 items-center gap-2">
+          <span className="shrink-0 font-mono text-[10px] text-muted-foreground sm:hidden">{item.id}</span>
           <span className="truncate text-[13px] text-foreground/90">{item.title}</span>
           <span className="hidden truncate text-[11px] text-muted-foreground lg:inline">· {item.projectName}</span>
           {showDetails && item.reason !== "Ready for dispatch" ? <Badge variant="outline" className="hidden h-5 max-w-36 px-1.5 text-[10px] text-muted-foreground xl:inline-flex">{item.reason}</Badge> : null}
@@ -78,7 +80,7 @@ export function QueueList({
 }) {
   return (
     <div className="min-h-0 flex-1 overflow-auto">
-      <div className="min-w-[720px]">
+      <div className="min-w-0">
         {loading ? (
           <div className="space-y-2 p-4">
             {Array.from({ length: 5 }, (_, index) => (
