@@ -443,15 +443,29 @@ impl Application {
         owner_account_id: Uuid,
         capabilities: Vec<String>,
     ) -> Result<(), Error> {
+        self.create_agent_role_with_id(project_id, display_name, owner_account_id, capabilities)
+            .await
+            .map(|_| ())
+    }
+
+    pub async fn create_agent_role_with_id(
+        &self,
+        project_id: Uuid,
+        display_name: &str,
+        owner_account_id: Uuid,
+        capabilities: Vec<String>,
+    ) -> Result<Uuid, Error> {
+        let role_id = Uuid::now_v7();
         self.database
             .create_agent_role_with_policy(
-                Uuid::now_v7(),
+                role_id,
                 project_id,
                 display_name,
                 owner_account_id,
                 capabilities,
             )
-            .await
+            .await?;
+        Ok(role_id)
     }
 
     pub async fn create_agent_session(

@@ -236,6 +236,42 @@
         ],
         "type": "object"
       },
+      "CreateAgentRoleRequest": {
+        "properties": {
+          "capabilities": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "owner_account_id": {
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "display_name"
+        ],
+        "type": "object"
+      },
+      "CreateAgentRoleResponse": {
+        "properties": {
+          "role_id": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role_id"
+        ],
+        "type": "object"
+      },
       "CreateAgentSessionRequest": {
         "properties": {
           "lifetime_seconds": {
@@ -1156,10 +1192,38 @@
     },
     "/api/v1/projects/{project_id}/agent-roles": {
       "post": {
-        "operationId": "post_api_v1_projects__project_id__agent-roles",
+        "operationId": "createAgentRole",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAgentRoleRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
-            "description": "Successful response"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateAgentRoleResponse"
+                }
+              }
+            },
+            "description": "Created agent role"
           }
         }
       }

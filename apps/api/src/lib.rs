@@ -538,6 +538,7 @@ pub fn openapi_document_value() -> Value {
             ,"SaveViewRequest": {"type": "object", "required": ["name", "filters"], "properties": {"name": {"type": "string", "maxLength": 80}, "filters": {"type": "object"}}}
             ,"CreateAgentSessionRequest": {"type": "object", "properties": {"lifetime_seconds": {"type": "integer", "minimum": 60, "maximum": 86400}}}
             ,"CreateAgentSessionResponse": {"type": "object", "required": ["session_id", "agent_token", "expires_at"], "properties": {"session_id": {"type": "string", "format": "uuid"}, "agent_token": {"type": "string"}, "expires_at": {"type": "string", "format": "date-time"}}}
+            ,"CreateAgentRoleResponse": {"type": "object", "required": ["role_id"], "properties": {"role_id": {"type": "string", "format": "uuid"}}}
             ,"LoroFrontier": {"type": "object", "required": ["peer_id", "counter"], "properties": {"peer_id": {"type": "string"}, "counter": {"type": "integer", "format": "int32"}}}
             ,"ApplyLoroUpdateRequest": {"type": "object", "required": ["update_id", "previous_frontiers", "payload_base64"], "properties": {"schema_version": {"type": ["integer", "null"]}, "update_id": {"type": "string", "format": "uuid"}, "idempotency_key": {"type": ["string", "null"]}, "previous_frontiers": {"type": "array", "items": {"$ref": "#/components/schemas/LoroFrontier"}}, "payload_base64": {"type": "string"}}}
             ,"ApplyLoroUpdateResponse": {"type": "object", "required": ["update_id", "document_id", "source", "previous_frontiers", "resulting_frontiers", "accepted_at", "replayed"], "properties": {"update_id": {"type": "string", "format": "uuid"}, "document_id": {"type": "string", "format": "uuid"}, "source": {"type": "string"}, "previous_frontiers": {"type": "array", "items": {"$ref": "#/components/schemas/LoroFrontier"}}, "resulting_frontiers": {"type": "array", "items": {"$ref": "#/components/schemas/LoroFrontier"}}, "accepted_at": {"type": "string", "format": "date-time"}, "replayed": {"type": "boolean"}}}
@@ -591,6 +592,17 @@ pub fn openapi_document_value() -> Value {
             });
         }
     }
+    document["paths"]["/api/v1/projects/{project_id}/agent-roles"]["post"] = json!({
+        "operationId": "createAgentRole",
+        "parameters": [{"name": "project_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CreateAgentRoleRequest"}}}},
+        "responses": {"200": {"description": "Created agent role", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CreateAgentRoleResponse"}}}}}
+    });
+    document["components"]["schemas"]["CreateAgentRoleRequest"] = json!({
+        "type": "object",
+        "required": ["display_name"],
+        "properties": {"display_name": {"type": "string"}, "owner_account_id": {"type": ["string", "null"], "format": "uuid"}, "capabilities": {"type": "array", "items": {"type": "string"}}}
+    });
     document
 }
 
@@ -1047,6 +1059,11 @@ struct CreateAgentRoleRequest {
     owner_account_id: Option<Uuid>,
     #[serde(default = "default_agent_capabilities")]
     capabilities: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct CreateAgentRoleResponse {
+    role_id: Uuid,
 }
 
 #[derive(Debug, Deserialize)]

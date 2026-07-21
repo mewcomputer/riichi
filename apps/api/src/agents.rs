@@ -35,12 +35,12 @@ pub(super) async fn create_agent_role(
     Path(project_id): Path<Uuid>,
     jar: CookieJar,
     Json(request): Json<CreateAgentRoleRequest>,
-) -> Result<StatusCode, ApiError> {
+) -> Result<Json<CreateAgentRoleResponse>, ApiError> {
     let principal = human_principal(&state, &jar).await?;
     require_admin(&principal, project_id)?;
-    state
+    let role_id = state
         .application
-        .create_agent_role(
+        .create_agent_role_with_id(
             project_id,
             &request.display_name,
             request.owner_account_id.unwrap_or(principal.account.id),
@@ -48,7 +48,7 @@ pub(super) async fn create_agent_role(
         )
         .await
         .map_err(ApiError::from)?;
-    Ok(StatusCode::NO_CONTENT)
+    Ok(Json(CreateAgentRoleResponse { role_id }))
 }
 
 pub(super) async fn create_agent_session(

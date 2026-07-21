@@ -790,7 +790,7 @@ export function createAgentRole(
   projectId: string,
   input: { display_name: string; owner_account_id?: string; capabilities: string[] },
 ) {
-  return sendNoContent(
+  return sendJson<{ role_id: string }>(
     `/api/v1/projects/${encodeURIComponent(projectId)}/agent-roles`,
     "POST",
     input,

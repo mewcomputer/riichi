@@ -494,7 +494,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["post_api_v1_projects__project_id__agent-roles"];
+        post: operations["createAgentRole"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1289,6 +1289,16 @@ export interface components {
             issue_id: string;
             /** Format: int64 */
             max_bytes?: number;
+        };
+        CreateAgentRoleRequest: {
+            capabilities?: string[];
+            display_name: string;
+            /** Format: uuid */
+            owner_account_id?: string | null;
+        };
+        CreateAgentRoleResponse: {
+            /** Format: uuid */
+            role_id: string;
         };
         CreateAgentSessionRequest: {
             lifetime_seconds?: number;
@@ -2145,21 +2155,29 @@ export interface operations {
             };
         };
     };
-    "post_api_v1_projects__project_id__agent-roles": {
+    createAgentRole: {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                project_id: string;
+            };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateAgentRoleRequest"];
+            };
+        };
         responses: {
-            /** @description Successful response */
+            /** @description Created agent role */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["CreateAgentRoleResponse"];
+                };
             };
         };
     };
