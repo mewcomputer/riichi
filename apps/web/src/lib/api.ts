@@ -284,6 +284,12 @@ export type AgentSession = {
   revoked_at: string | null;
 };
 
+export type CreatedAgentSession = {
+  session_id: string;
+  agent_token: string;
+  expires_at: string;
+};
+
 export type AgentRoster = {
   roles: AgentRole[];
   sessions: AgentSession[];
@@ -769,6 +775,14 @@ export function revokeAgentSession(projectId: string, sessionId: string) {
 export function revokeAgentRole(projectId: string, roleId: string) {
   return sendNoContent(
     `/api/v1/projects/${encodeURIComponent(projectId)}/agent-roles/${encodeURIComponent(roleId)}/revoke`,
+  );
+}
+
+export function createAgentSession(projectId: string, roleId: string, lifetimeSeconds = 1800) {
+  return sendJson<CreatedAgentSession>(
+    `/api/v1/projects/${encodeURIComponent(projectId)}/agent-roles/${encodeURIComponent(roleId)}/sessions`,
+    "POST",
+    { lifetime_seconds: lifetimeSeconds },
   );
 }
 

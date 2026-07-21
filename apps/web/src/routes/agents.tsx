@@ -7,11 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   ApiError,
+  createAgentSession,
   createAgentRole,
   getTeamAgentRoster,
   getCurrentUser,
   revokeAgentRole,
   revokeAgentSession,
+  type CreatedAgentSession,
 } from "@/lib/api";
 import { ProjectHeader } from "@/components/project/project-header";
 import { ProjectShell } from "@/components/project/project-shell";
@@ -22,6 +24,7 @@ import { useNavigation } from "../hooks/use-navigation";
 import { useActiveTeam } from "../hooks/use-active-team";
 import { useHumanAgentRoster } from "../hooks/use-human-agent-roster";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { agentCliCommand } from "@/data/agents";
 
 export function AgentsPage() {
   const queryClient = useQueryClient();
@@ -29,6 +32,7 @@ export function AgentsPage() {
   const { organizationSlug } = useParams({ from: "/$organizationSlug/agents" });
   const appLogout = useAppLogout();
   const [newRoleName, setNewRoleName] = useState("");
+  const [issuedSessions, setIssuedSessions] = useState<Record<string, CreatedAgentSession>>({});
   const meQuery = useQuery({ queryKey: ["auth", "me"], queryFn: getCurrentUser, retry: false });
   const navigationQuery = useNavigation();
   const { activeMembership, projectId, selectProject } = useActiveProject(meQuery.data?.memberships);
@@ -60,6 +64,13 @@ export function AgentsPage() {
     }),
     onSuccess: () => {
       setNewRoleName("");
+      void queryClient.invalidateQueries({ queryKey: ["agents", "team", teamId] });
+    },
+  });
+  const createSessionMutation = useMutation({
+    mutationFn: (role: { project_id: string; id: string }) => createAgentSession(role.project_id, role.id),
+    onSuccess: (session, role) => {
+      setIssuedSessions((current) => ({ ...current, [role.id]: session }));
       void queryClient.invalidateQueries({ queryKey: ["agents", "team", teamId] });
     },
   });
@@ -120,6 +131,15 @@ export function AgentsPage() {
                   {!role.revoked_at ? <Button size="sm" variant="destructive" onClick={() => revokeRoleMutation.mutate(role)} disabled={revokeRoleMutation.isPending}>Revoke role</Button> : null}
                 </div>
                 <div className="mt-4 grid gap-2 border-t border-border/60 pt-3">
+                  {!role.revoked_at ? <Button size="sm" variant="outline" className="w-fit" onClick={() => createSessionMutation.mutate(role)} disabled={createSessionMutation.isPending}>Issue CLI session</Button> : null}
+                  {issuedSessions[role.id] ? <div className="grid gap-2 rounded-md border border-primary/25 bg-primary/5 p-3 text-xs">
+                    <p className="font-medium">Session token shown once</p>
+                    <p className="text-muted-foreground">Expires {new Date(issuedSessions[role.id].expires_at).toLocaleString()}.</p>
+                    <code className="overflow-x-auto rounded bg-background/70 p-2 text-[10px]">{issuedSessions[role.id].agent_token}</code>
+                    <code className="overflow-x-auto whitespace-pre-wrap rounded bg-background/70 p-2 text-[10px]">{agentCliCommand(role.project_id, issuedSessions[role.id])}</code>
+                    <Button size="sm" className="w-fit" onClick={() => void navigator.clipboard?.writeText(agentCliCommand(role.project_id, issuedSessions[role.id]))}>Copy CLI command</Button>
+                  </div> : null}
+                  {createSessionMutation.error ? <span className="text-xs text-destructive">{createSessionMutation.error.message}</span> : null}
                   {roleSessions.map((session) => (
                     <div key={session.id} className="flex items-center justify-between text-xs">
                       <div>

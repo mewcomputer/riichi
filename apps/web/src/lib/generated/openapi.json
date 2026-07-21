@@ -236,6 +236,37 @@
         ],
         "type": "object"
       },
+      "CreateAgentSessionRequest": {
+        "properties": {
+          "lifetime_seconds": {
+            "maximum": 86400,
+            "minimum": 60,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "CreateAgentSessionResponse": {
+        "properties": {
+          "agent_token": {
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "session_id": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "session_id",
+          "agent_token",
+          "expires_at"
+        ],
+        "type": "object"
+      },
       "InboxResponse": {
         "properties": {
           "notifications": {
@@ -1139,6 +1170,53 @@
         "responses": {
           "200": {
             "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/agent-roles/{role_id}/sessions": {
+      "post": {
+        "operationId": "createAgentSession",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "role_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAgentSessionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateAgentSessionResponse"
+                }
+              }
+            },
+            "description": "One-time agent session credential"
           }
         }
       }

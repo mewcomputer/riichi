@@ -51,6 +51,37 @@ pub(super) async fn create_agent_role(
     Ok(StatusCode::NO_CONTENT)
 }
 
+pub(super) async fn create_agent_session(
+    State(state): State<AppState>,
+    Path((project_id, role_id)): Path<(Uuid, Uuid)>,
+    jar: CookieJar,
+    Json(request): Json<CreateAgentSessionRequest>,
+) -> Result<Json<CreateAgentSessionResponse>, ApiError> {
+    let principal = human_principal(&state, &jar).await?;
+    require_admin(&principal, project_id)?;
+    let lifetime_seconds = request
+        .lifetime_seconds
+        .unwrap_or(30 * 60)
+        .clamp(60, 24 * 60 * 60);
+    let agent_token = format!("{}{}", Uuid::now_v7().simple(), Uuid::now_v7().simple());
+    let expires_at = chrono::Utc::now() + chrono::Duration::seconds(lifetime_seconds);
+    let session_id = state
+        .application
+        .create_agent_session(
+            project_id,
+            role_id,
+            chrono::Duration::seconds(lifetime_seconds),
+            &agent_token,
+        )
+        .await
+        .map_err(ApiError::from)?;
+    Ok(Json(CreateAgentSessionResponse {
+        session_id,
+        agent_token,
+        expires_at,
+    }))
+}
+
 pub(super) async fn revoke_agent_session(
     State(state): State<AppState>,
     Path((project_id, session_id)): Path<(Uuid, Uuid)>,

@@ -454,6 +454,20 @@ impl Application {
             .await
     }
 
+    pub async fn create_agent_session(
+        &self,
+        project_id: Uuid,
+        role_id: Uuid,
+        lifetime: Duration,
+        agent_token: &str,
+    ) -> Result<Uuid, Error> {
+        let session_id = Uuid::now_v7();
+        self.database
+            .create_session(session_id, project_id, role_id, lifetime, agent_token)
+            .await?;
+        Ok(session_id)
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub async fn grant_lease_collaborator(
         &self,

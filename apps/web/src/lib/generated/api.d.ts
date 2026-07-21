@@ -517,6 +517,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{project_id}/agent-roles/{role_id}/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["createAgentSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{project_id}/agent-sessions/{session_id}/revoke": {
         parameters: {
             query?: never;
@@ -1273,6 +1289,16 @@ export interface components {
             issue_id: string;
             /** Format: int64 */
             max_bytes?: number;
+        };
+        CreateAgentSessionRequest: {
+            lifetime_seconds?: number;
+        };
+        CreateAgentSessionResponse: {
+            agent_token: string;
+            /** Format: date-time */
+            expires_at: string;
+            /** Format: uuid */
+            session_id: string;
         };
         InboxResponse: {
             notifications: components["schemas"]["Notification"][];
@@ -2152,6 +2178,33 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    createAgentSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                role_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateAgentSessionRequest"];
+            };
+        };
+        responses: {
+            /** @description One-time agent session credential */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateAgentSessionResponse"];
+                };
             };
         };
     };
