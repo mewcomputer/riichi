@@ -12,6 +12,11 @@ export type QueueAdvancedFilter = {
 
 export type QueueIssueClaimHandler = (item: QueueItem) => void;
 
+export type QueueMutationFeedback = {
+  state: "pending" | "confirmed" | "rejected";
+  message?: string;
+};
+
 export const stateCopy: Record<QueueState, string> = {
   ready: "Ready",
   attention: "Attention",

@@ -1,7 +1,8 @@
-import { Filter, SlidersHorizontal } from "lucide-react";
+import { Filter, SlidersHorizontal, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { activeQueueFilterChips, type QueueSearchState } from "@/data/queue-search";
 import type { QueueItem } from "@/data/queue";
 import { issueImportanceLabel, type IssueImportance } from "@/components/issues/issue-importance-menu";
 import { issueStatuses } from "@/components/issues/issue-status-menu";
@@ -17,4 +18,27 @@ export function QueueFilterMenu({ items, advancedFilter, onAdvancedFilterChange 
 
 export function QueueDisplayMenu({ showDetails, onShowDetailsChange }: { showDetails: boolean; onShowDetailsChange: (show: boolean) => void }) {
   return <DropdownMenu><DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" className="text-muted-foreground" aria-label="Display options" />}><SlidersHorizontal /></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-48"><DropdownMenuLabel>Display options</DropdownMenuLabel><DropdownMenuSeparator /><DropdownMenuCheckboxItem checked={showDetails} onCheckedChange={(checked) => onShowDetailsChange(checked === true)}>Show status details</DropdownMenuCheckboxItem><DropdownMenuCheckboxItem checked={false} disabled>Show estimates</DropdownMenuCheckboxItem></DropdownMenuContent></DropdownMenu>;
+}
+
+export function QueueFilterChips({ state, items, onChange }: { state: QueueSearchState; items: QueueItem[]; onChange: (next: Partial<QueueSearchState>) => void }) {
+  const teamName = items.find((item) => item.teamKey === state.advancedFilter.teamKey)?.teamName;
+  const projectName = items.find((item) => item.projectId === state.advancedFilter.projectId)?.projectName;
+  const chips = activeQueueFilterChips(state, { team: teamName, project: projectName });
+  if (chips.length === 0) return null;
+  return (
+    <div className="flex min-h-8 shrink-0 flex-wrap items-center gap-1 border-b border-border/40 px-4 py-1.5" aria-label="Active filters">
+      {chips.map((chip) => (
+        <button
+          key={chip.id}
+          type="button"
+          className="inline-flex h-6 items-center gap-1 rounded-md border border-border bg-muted/45 px-2 text-[11px] text-foreground/80 transition-colors hover:bg-muted focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          onClick={() => onChange(chip.clear)}
+          aria-label={`Clear ${chip.label} filter`}
+        >
+          {chip.label}
+          <X className="size-3 text-muted-foreground" aria-hidden="true" />
+        </button>
+      ))}
+    </div>
+  );
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { moveQueueSelection, parseQueueSearch, serializeQueueSearch } from "./queue-search";
+import { activeQueueFilterChips, moveQueueSelection, parseQueueSearch, serializeQueueSearch } from "./queue-search";
 
 describe("queue search state", () => {
   it("parses valid URL state and preserves the queue controls", () => {
@@ -50,5 +50,27 @@ describe("queue search state", () => {
     expect(moveQueueSelection(ids, "three", 1)).toBe("three");
     expect(moveQueueSelection(ids, "two", 1)).toBe("three");
     expect(moveQueueSelection([], null, 1)).toBeNull();
+  });
+
+  it("describes active filters with independent clear operations", () => {
+    const chips = activeQueueFilterChips({
+      filter: "ready",
+      view: "backlog",
+      query: "ENG-42",
+      showDetails: true,
+      advancedFilter: { status: "blocked", importance: "urgent", teamKey: "eng", projectId: "project-1" },
+    }, { team: "Engineering", project: "Dispatch" });
+    expect(chips.map((chip) => chip.label)).toEqual([
+      "Ready",
+      "Backlog",
+      "Search: ENG-42",
+      "Status: Blocked",
+      "Priority: Urgent",
+      "Team: Engineering",
+      "Project: Dispatch",
+    ]);
+    expect(chips.find((chip) => chip.id === "status")?.clear).toEqual({
+      advancedFilter: { status: "all", importance: "urgent", teamKey: "eng", projectId: "project-1" },
+    });
   });
 });

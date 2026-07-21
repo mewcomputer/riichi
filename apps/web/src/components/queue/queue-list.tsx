@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { IssueStatusMenu, type IssueStatus } from "@/components/issues/issue-status-menu";
 import { IssueImportanceMenu, type IssueImportance } from "@/components/issues/issue-importance-menu";
 import { groupQueueItemsByStatus, type QueueItem } from "@/data/queue";
+import type { QueueMutationFeedback } from "./types";
 
 function StatusMark({ status }: { status: IssueStatus }) {
   if (status === "triage" || status === "blocked") return <CircleAlert className="size-4 text-orange-400" />;
@@ -17,7 +18,7 @@ function StatusMark({ status }: { status: IssueStatus }) {
   return <Circle className="size-4 text-muted-foreground" />;
 }
 
-function QueueRow({ item, organizationSlug, selected, showDetails, onOpenIssue, onStatusChange, onImportanceChange }: { item: QueueItem; organizationSlug: string; selected: boolean; showDetails: boolean; onOpenIssue: (item: QueueItem) => void; onStatusChange: (item: QueueItem, status: IssueStatus) => void; onImportanceChange: (item: QueueItem, importance: IssueImportance) => void }) {
+function QueueRow({ item, organizationSlug, selected, feedback, showDetails, onOpenIssue, onStatusChange, onImportanceChange }: { item: QueueItem; organizationSlug: string; selected: boolean; feedback?: QueueMutationFeedback; showDetails: boolean; onOpenIssue: (item: QueueItem) => void; onStatusChange: (item: QueueItem, status: IssueStatus) => void; onImportanceChange: (item: QueueItem, importance: IssueImportance) => void }) {
   return (
     <div data-queue-item-id={item.issueId} className={`grid min-h-10 grid-cols-[24px_64px_24px_minmax(220px,1fr)_auto] items-center gap-2 border-b border-border/40 px-4 text-xs transition-colors hover:bg-muted/35 ${selected ? "bg-muted/45 ring-1 ring-inset ring-ring/60" : ""}`}>
       <IssueImportanceMenu importance={item.importance} compact onChange={(importance) => onImportanceChange(item, importance)} />
@@ -40,6 +41,7 @@ function QueueRow({ item, organizationSlug, selected, showDetails, onOpenIssue, 
           {showDetails && item.reason !== "Ready for dispatch" ? <Badge variant="outline" className="hidden h-5 max-w-36 px-1.5 text-[10px] text-muted-foreground xl:inline-flex">{item.reason}</Badge> : null}
         </div>
         <div className="flex items-center justify-end gap-2 text-[10px] text-muted-foreground">
+          {feedback ? <span role={feedback.state === "rejected" ? "alert" : "status"} className={feedback.state === "rejected" ? "text-destructive" : feedback.state === "pending" ? "text-foreground/60" : "text-emerald-400"}>{feedback.state === "pending" ? "Saving…" : feedback.state === "confirmed" ? "Saved" : feedback.message ?? "Update failed"}</span> : null}
           <span>{item.age.replace(" in queue", "")}</span>
         </div>
       </Link>
@@ -51,6 +53,7 @@ export function QueueList({
   organizationSlug,
   items,
   selectedIssueId = null,
+  feedbackByIssueId = {},
   showDetails,
   loading = false,
   error,
@@ -63,6 +66,7 @@ export function QueueList({
   organizationSlug: string;
   items: QueueItem[];
   selectedIssueId?: string | null;
+  feedbackByIssueId?: Record<string, QueueMutationFeedback>;
   showDetails: boolean;
   loading?: boolean;
   error?: Error;
@@ -103,7 +107,7 @@ export function QueueList({
                 <span className="text-muted-foreground">{group.items.length}</span>
               </div>
               {group.items.map((item) => (
-                <QueueRow key={`${item.projectId}-${item.issueId}`} item={item} organizationSlug={organizationSlug} selected={item.issueId === selectedIssueId} showDetails={showDetails} onOpenIssue={onOpenIssue} onStatusChange={onStatusChange} onImportanceChange={onImportanceChange} />
+                <QueueRow key={`${item.projectId}-${item.issueId}`} item={item} organizationSlug={organizationSlug} selected={item.issueId === selectedIssueId} feedback={feedbackByIssueId[item.issueId]} showDetails={showDetails} onOpenIssue={onOpenIssue} onStatusChange={onStatusChange} onImportanceChange={onImportanceChange} />
               ))}
             </section>
           ))

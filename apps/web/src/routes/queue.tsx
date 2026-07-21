@@ -16,11 +16,11 @@ import { useNavigation } from "../hooks/use-navigation";
 import { createQueueCommandGroups } from "../components/queue/queue-command-groups";
 import { QueueList } from "../components/queue/queue-list";
 import { QueueToolbar } from "../components/queue/queue-toolbar";
-import { QueueDisplayMenu, QueueFilterMenu } from "../components/queue/queue-controls";
+import { QueueDisplayMenu, QueueFilterChips, QueueFilterMenu } from "../components/queue/queue-controls";
 import { ProjectHeader, type ProjectViewTab } from "../components/project/project-header";
 import { ProjectShell } from "../components/project/project-shell";
 import { ProjectSidebar } from "../components/project/project-sidebar";
-import type { QueueFilter, QueueView } from "../components/queue/types";
+import type { QueueFilter, QueueMutationFeedback, QueueView } from "../components/queue/types";
 import { moveQueueSelection, parseQueueSearch, serializeQueueSearch, type QueueSearchState } from "../data/queue-search";
 import { LazyIssueCreateDialog } from "../components/issues/lazy-issue-create-dialog";
 import type { IssueStatus } from "../components/issues/issue-status-menu";
@@ -53,6 +53,7 @@ export function QueuePage({ initialFilter = "all", initialView = "all", teamId, 
   }), [initialFilter, initialView, parsedSearch]);
   const { filter, view, query, showDetails, advancedFilter } = searchState;
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
+  const [feedbackByIssueId, setFeedbackByIssueId] = useState<Record<string, QueueMutationFeedback>>({});
   const [createOpen, setCreateOpen] = useState(false);
   const navigate = useNavigate();
   const appLogout = useAppLogout();
@@ -94,18 +95,32 @@ export function QueuePage({ initialFilter = "all", initialView = "all", teamId, 
     mutationFn: async ({ item, status }: { item: ReturnType<typeof toQueueItem>; status: IssueStatus }) => {
       return updateIssueMetadata(metadataCollection, item.projectId, item.issueId, { status });
     },
-    onSuccess: () => {
+    onMutate: ({ item }) => {
+      setFeedbackByIssueId((current) => ({ ...current, [item.issueId]: { state: "pending" } }));
+    },
+    onSuccess: (_result, { item }) => {
+      setFeedbackByIssueId((current) => ({ ...current, [item.issueId]: { state: "confirmed" } }));
       void queryClient.invalidateQueries({ queryKey: ["issues", "all"] });
       if (teamId) void queryClient.invalidateQueries({ queryKey: ["issues", "team", teamId] });
+    },
+    onError: (error, { item }) => {
+      setFeedbackByIssueId((current) => ({ ...current, [item.issueId]: { state: "rejected", message: error instanceof Error ? error.message : "Update failed" } }));
     },
   });
   const importanceMutation = useMutation({
     mutationFn: async ({ item, importance }: { item: ReturnType<typeof toQueueItem>; importance: IssueImportance }) => {
       return updateIssueMetadata(metadataCollection, item.projectId, item.issueId, { importance });
     },
-    onSuccess: () => {
+    onMutate: ({ item }) => {
+      setFeedbackByIssueId((current) => ({ ...current, [item.issueId]: { state: "pending" } }));
+    },
+    onSuccess: (_result, { item }) => {
+      setFeedbackByIssueId((current) => ({ ...current, [item.issueId]: { state: "confirmed" } }));
       void queryClient.invalidateQueries({ queryKey: ["issues", "all"] });
       if (teamId) void queryClient.invalidateQueries({ queryKey: ["issues", "team", teamId] });
+    },
+    onError: (error, { item }) => {
+      setFeedbackByIssueId((current) => ({ ...current, [item.issueId]: { state: "rejected", message: error instanceof Error ? error.message : "Update failed" } }));
     },
   });
   const allItems = useMemo(
@@ -280,11 +295,12 @@ export function QueuePage({ initialFilter = "all", initialView = "all", teamId, 
         onRefresh={() => void queueQuery.refetch()}
         onCreate={() => setCreateOpen(true)}
       />
-      {statusMutation.error || importanceMutation.error ? <p role="alert" className="px-4 pb-2 text-xs text-destructive">{(statusMutation.error ?? importanceMutation.error)?.message}</p> : null}
+      <QueueFilterChips state={searchState} items={allItems} onChange={(next) => updateSearch(next, true)} />
       <QueueList
         organizationSlug={organizationSlug}
         items={visibleItems}
         selectedIssueId={selectedIssueId}
+        feedbackByIssueId={feedbackByIssueId}
         showDetails={showDetails}
         loading={loading}
         error={displayError instanceof Error ? displayError : undefined}
