@@ -75,10 +75,22 @@ describe("queue state mapping", () => {
 
   it("matches each advanced filter criterion independently", () => {
     const item = toQueueItem({ ...baseIssue, importance: "high" }, new Date("2026-07-11T12:42:00.000Z"));
-    expect(matchesQueueAdvancedFilter(item, { status: "all", importance: "all", teamKey: "all", projectId: "all" })).toBe(true);
-    expect(matchesQueueAdvancedFilter(item, { status: "todo", importance: "high", teamKey: "RII", projectId: "project-id" })).toBe(true);
-    expect(matchesQueueAdvancedFilter(item, { status: "blocked", importance: "high", teamKey: "RII", projectId: "project-id" })).toBe(false);
-    expect(matchesQueueAdvancedFilter(item, { status: "todo", importance: "urgent", teamKey: "RII", projectId: "project-id" })).toBe(false);
+    const baseFilter = { assignee: "all" as const, label: "all" };
+    expect(matchesQueueAdvancedFilter(item, { ...baseFilter, status: "all", importance: "all", teamKey: "all", projectId: "all" })).toBe(true);
+    expect(matchesQueueAdvancedFilter(item, { ...baseFilter, status: "todo", importance: "high", teamKey: "RII", projectId: "project-id" })).toBe(true);
+    expect(matchesQueueAdvancedFilter(item, { ...baseFilter, status: "blocked", importance: "high", teamKey: "RII", projectId: "project-id" })).toBe(false);
+    expect(matchesQueueAdvancedFilter(item, { ...baseFilter, status: "todo", importance: "urgent", teamKey: "RII", projectId: "project-id" })).toBe(false);
+  });
+
+  it("matches assignee and label filters against preserved server fields", () => {
+    const item = toQueueItem({ ...baseIssue, assignee_account_id: "account-1", labels: ["customer"] });
+    const baseFilter = { status: "all" as const, importance: "all" as const, teamKey: "all", projectId: "all", label: "all" };
+    expect(matchesQueueAdvancedFilter(item, { ...baseFilter, assignee: "assigned" })).toBe(true);
+    expect(matchesQueueAdvancedFilter(item, { ...baseFilter, assignee: "me" }, "account-1")).toBe(true);
+    expect(matchesQueueAdvancedFilter(item, { ...baseFilter, assignee: "me" }, "account-2")).toBe(false);
+    expect(matchesQueueAdvancedFilter(item, { ...baseFilter, assignee: "unassigned" })).toBe(false);
+    expect(matchesQueueAdvancedFilter(item, { ...baseFilter, assignee: "all", label: "customer" })).toBe(true);
+    expect(matchesQueueAdvancedFilter(item, { ...baseFilter, assignee: "all", label: "billing" })).toBe(false);
   });
 
   it("keeps issues in separate lifecycle status groups", () => {

@@ -20,6 +20,8 @@ export type QueueItem = {
   reason: string;
   activeLeaseId: string | null;
   leaseExpiresAt: string | null;
+  assigneeAccountId: string | null;
+  labels: string[];
 };
 
 export function groupQueueItemsByStatus(items: QueueItem[]) {
@@ -72,12 +74,17 @@ export function queueReason(issue: HumanQueueIssue) {
   return "Ready for dispatch";
 }
 
-export function matchesQueueAdvancedFilter(item: QueueItem, filter: QueueAdvancedFilter) {
+export function matchesQueueAdvancedFilter(item: QueueItem, filter: QueueAdvancedFilter, accountId?: string) {
   return (
     (filter.status === "all" || item.status === filter.status) &&
     (filter.importance === "all" || item.importance === filter.importance) &&
     (filter.teamKey === "all" || item.teamKey === filter.teamKey) &&
-    (filter.projectId === "all" || item.projectId === filter.projectId)
+    (filter.projectId === "all" || item.projectId === filter.projectId) &&
+    (filter.assignee === "all" ||
+      (filter.assignee === "assigned" && item.assigneeAccountId !== null) ||
+      (filter.assignee === "unassigned" && item.assigneeAccountId === null) ||
+      (filter.assignee === "me" && item.assigneeAccountId === accountId)) &&
+    (filter.label === "all" || item.labels.includes(filter.label))
   );
 }
 
@@ -109,5 +116,7 @@ export function toQueueItem(issue: HumanQueueIssue, now = new Date()): QueueItem
     reason: queueReason(issue),
     activeLeaseId: issue.active_lease_id,
     leaseExpiresAt: issue.lease_expires_at,
+    assigneeAccountId: issue.assignee_account_id,
+    labels: issue.labels,
   };
 }

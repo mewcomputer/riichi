@@ -195,9 +195,9 @@ export function QueuePage({ initialFilter = "all", initialView = "all", teamId, 
         `${item.id} ${item.title} ${item.description} ${item.reason}`
           .toLowerCase()
           .includes(normalizedQuery);
-      return matchesFilter && matchesQueueAdvancedFilter(item, advancedFilter) && matchesView && matchesQuery;
+      return matchesFilter && matchesQueueAdvancedFilter(item, advancedFilter, meQuery.data?.account_id) && matchesView && matchesQuery;
     });
-  }, [allItems, advancedFilter, filter, query, view]);
+  }, [allItems, advancedFilter, filter, meQuery.data?.account_id, query, view]);
 
   useEffect(() => {
     if (selectedIssueId && !visibleItems.some((item) => item.issueId === selectedIssueId)) {

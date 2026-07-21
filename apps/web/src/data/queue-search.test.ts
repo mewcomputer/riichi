@@ -18,7 +18,7 @@ describe("queue search state", () => {
       view: "backlog",
       query: "ENG-42",
       showDetails: false,
-      advancedFilter: { status: "blocked", importance: "urgent", teamKey: "eng", projectId: "project-1" },
+      advancedFilter: { status: "blocked", importance: "urgent", teamKey: "eng", projectId: "project-1", assignee: "all", label: "all" },
     });
   });
 
@@ -28,7 +28,7 @@ describe("queue search state", () => {
       view: "all",
       query: "",
       showDetails: true,
-      advancedFilter: { status: "all", importance: "all", teamKey: "all", projectId: "all" },
+      advancedFilter: { status: "all", importance: "all", teamKey: "all", projectId: "all", assignee: "all", label: "all" },
     });
   });
 
@@ -38,7 +38,7 @@ describe("queue search state", () => {
       view: "all",
       query: "",
       showDetails: true,
-      advancedFilter: { status: "all", importance: "all", teamKey: "all", projectId: "all" },
+      advancedFilter: { status: "all", importance: "all", teamKey: "all", projectId: "all", assignee: "all", label: "all" },
     })).toEqual({});
   });
 
@@ -58,7 +58,7 @@ describe("queue search state", () => {
       view: "backlog",
       query: "ENG-42",
       showDetails: true,
-      advancedFilter: { status: "blocked", importance: "urgent", teamKey: "eng", projectId: "project-1" },
+      advancedFilter: { status: "blocked", importance: "urgent", teamKey: "eng", projectId: "project-1", assignee: "me", label: "urgent" },
     }, { team: "Engineering", project: "Dispatch" });
     expect(chips.map((chip) => chip.label)).toEqual([
       "Ready",
@@ -68,9 +68,11 @@ describe("queue search state", () => {
       "Priority: Urgent",
       "Team: Engineering",
       "Project: Dispatch",
+      "Assignee: Me",
+      "Label: urgent",
     ]);
     expect(chips.find((chip) => chip.id === "status")?.clear).toEqual({
-      advancedFilter: { status: "all", importance: "urgent", teamKey: "eng", projectId: "project-1" },
+      advancedFilter: { status: "all", importance: "urgent", teamKey: "eng", projectId: "project-1", assignee: "me", label: "urgent" },
     });
   });
 });

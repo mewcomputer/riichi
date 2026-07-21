@@ -33,6 +33,7 @@ const queueImportances = new Set<QueueAdvancedFilter["importance"]>([
   "high",
   "urgent",
 ]);
+const queueAssignees = new Set<QueueAdvancedFilter["assignee"]>(["all", "me", "assigned", "unassigned"]);
 
 function valueOr<T>(value: unknown, values: Set<T>, fallback: T): T {
   return typeof value === "string" && values.has(value as T) ? value as T : fallback;
@@ -49,6 +50,8 @@ export function parseQueueSearch(search: Record<string, unknown>): QueueSearchSt
       importance: valueOr(search.importance, queueImportances, "all"),
       teamKey: typeof search.team === "string" && search.team ? search.team : "all",
       projectId: typeof search.project === "string" && search.project ? search.project : "all",
+      assignee: valueOr(search.assignee, queueAssignees, "all"),
+      label: typeof search.label === "string" && search.label ? search.label : "all",
     },
   };
 }
@@ -63,6 +66,8 @@ export function serializeQueueSearch(state: QueueSearchState) {
     ...(state.advancedFilter.importance !== "all" ? { importance: state.advancedFilter.importance } : {}),
     ...(state.advancedFilter.teamKey !== "all" ? { team: state.advancedFilter.teamKey } : {}),
     ...(state.advancedFilter.projectId !== "all" ? { project: state.advancedFilter.projectId } : {}),
+    ...(state.advancedFilter.assignee !== "all" ? { assignee: state.advancedFilter.assignee } : {}),
+    ...(state.advancedFilter.label !== "all" ? { label: state.advancedFilter.label } : {}),
   };
 }
 
@@ -79,7 +84,7 @@ function readable(value: string) {
 
 export function activeQueueFilterChips(
   state: QueueSearchState,
-  labels: { team?: string; project?: string } = {},
+  labels: { team?: string; project?: string; account?: string } = {},
 ): QueueFilterChip[] {
   const chips: QueueFilterChip[] = [];
   if (state.filter !== "all") chips.push({ id: "filter", label: readable(state.filter), clear: { filter: "all" } });
@@ -89,5 +94,7 @@ export function activeQueueFilterChips(
   if (state.advancedFilter.importance !== "all") chips.push({ id: "importance", label: `Priority: ${readable(state.advancedFilter.importance)}`, clear: { advancedFilter: { ...state.advancedFilter, importance: "all" } } });
   if (state.advancedFilter.teamKey !== "all") chips.push({ id: "team", label: `Team: ${labels.team ?? state.advancedFilter.teamKey}`, clear: { advancedFilter: { ...state.advancedFilter, teamKey: "all" } } });
   if (state.advancedFilter.projectId !== "all") chips.push({ id: "project", label: `Project: ${labels.project ?? state.advancedFilter.projectId}`, clear: { advancedFilter: { ...state.advancedFilter, projectId: "all" } } });
+  if (state.advancedFilter.assignee !== "all") chips.push({ id: "assignee", label: `Assignee: ${state.advancedFilter.assignee === "me" ? "Me" : readable(state.advancedFilter.assignee)}`, clear: { advancedFilter: { ...state.advancedFilter, assignee: "all" } } });
+  if (state.advancedFilter.label !== "all") chips.push({ id: "label", label: `Label: ${state.advancedFilter.label}`, clear: { advancedFilter: { ...state.advancedFilter, label: "all" } } });
   return chips;
 }

@@ -8,6 +8,8 @@ export type QueueAdvancedFilter = {
   importance: HumanQueueIssue["importance"] | "all";
   teamKey: string;
   projectId: string;
+  assignee: "all" | "me" | "assigned" | "unassigned";
+  label: string;
 };
 
 export type QueueIssueClaimHandler = (item: QueueItem) => void;
