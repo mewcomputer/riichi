@@ -25,3 +25,8 @@ export function notificationSummary(notification: Notification) {
   return "You have a new Riichi notification.";
 }
 
+export function notificationAction(notification: Notification) {
+  if (notification.kind === "approval") return "Review approval";
+  if (notification.issue_id) return "Open issue";
+  return null;
+}

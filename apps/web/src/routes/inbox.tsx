@@ -14,7 +14,7 @@ import { useActiveProject } from "@/hooks/use-active-project";
 import { useAppLogout } from "@/hooks/use-app-logout";
 import { useNavigation } from "@/hooks/use-navigation";
 import { organizationSlug as toOrganizationSlug } from "@/lib/organization-slug";
-import { filterNotifications, notificationSummary, notificationTitle } from "@/data/inbox";
+import { filterNotifications, notificationAction, notificationSummary, notificationTitle } from "@/data/inbox";
 
 export function InboxPage() {
   const { organizationSlug } = useParams({ from: "/$organizationSlug/inbox" });
@@ -113,10 +113,12 @@ export function InboxPage() {
         <div className="grid gap-2">
           {visibleNotifications.map((notification) => {
             const isRead = notification.read_at !== null || readConfirmedIds.has(notification.id);
+            const action = notificationAction(notification);
             const issueLink = notification.issue_id ? <Link to="/issues/$issueId" params={{ issueId: notification.issue_id }} className="group block min-w-0 flex-1 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"><p className="font-medium group-hover:underline">{notificationTitle(notification.kind)}</p><p className="truncate text-xs text-muted-foreground">{notificationSummary(notification)}</p></Link> : <div className="min-w-0 flex-1"><p className="font-medium">{notificationTitle(notification.kind)}</p><p className="truncate text-xs text-muted-foreground">{notificationSummary(notification)}</p></div>;
             return <article key={notification.id} className={`flex flex-col gap-3 rounded-md border border-border/60 px-3 py-3 text-sm sm:flex-row sm:items-center ${isRead ? "bg-background" : "bg-muted/15"}`}>
               <span className={`size-2 shrink-0 rounded-full ${isRead ? "bg-muted" : "bg-primary"}`} />
               {issueLink}
+              {action === "Review approval" ? <Link to="/$organizationSlug/approvals" params={{ organizationSlug }} className="inline-flex h-11 shrink-0 items-center rounded-md border border-border px-3 text-xs hover:bg-muted/50 sm:h-8">{action}</Link> : null}
               <time className="shrink-0 text-[10px] text-muted-foreground sm:text-right" dateTime={notification.created_at}>
                 {new Date(notification.created_at).toLocaleString()}
               </time>
