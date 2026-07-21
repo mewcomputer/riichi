@@ -21,6 +21,7 @@ describe("inbox helpers", () => {
     const items = [notification(), notification({ id: "notification-2", project_id: "project-2" }), notification({ id: "notification-3", project_id: null })];
     expect(filterNotifications(items, "all")).toHaveLength(3);
     expect(filterNotifications(items, "project-2").map((item) => item.id)).toEqual(["notification-2"]);
+    expect(filterNotifications([...items, notification({ id: "notification-4", kind: "approval" })], "all", "approval").map((item) => item.id)).toEqual(["notification-4"]);
   });
 
   it("uses typed notification copy before falling back to generic copy", () => {

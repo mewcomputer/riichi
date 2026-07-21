@@ -1,7 +1,10 @@
 import type { Notification } from "@/lib/api";
 
-export function filterNotifications(notifications: Notification[], projectId: string) {
-  return projectId === "all" ? notifications : notifications.filter((notification) => notification.project_id === projectId);
+export function filterNotifications(notifications: Notification[], projectId: string, kind: Notification["kind"] | "all" = "all") {
+  return notifications.filter((notification) =>
+    (projectId === "all" || notification.project_id === projectId) &&
+    (kind === "all" || notification.kind === kind),
+  );
 }
 
 export function notificationTitle(kind: Notification["kind"]) {

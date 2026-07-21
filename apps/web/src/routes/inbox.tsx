@@ -20,6 +20,7 @@ export function InboxPage() {
   const { organizationSlug } = useParams({ from: "/$organizationSlug/inbox" });
   const rawSearch = useSearch({ strict: false }) as Record<string, unknown>;
   const projectFilter = typeof rawSearch.project === "string" && rawSearch.project ? rawSearch.project : "all";
+  const kindFilter = ["all", "comment", "approval", "assignment", "invitation", "takeover", "lease"].includes(String(rawSearch.kind)) ? String(rawSearch.kind) as Notification["kind"] | "all" : "all";
   const navigate = useNavigate();
   const appLogout = useAppLogout();
   const queryClient = useQueryClient();
@@ -39,14 +40,16 @@ export function InboxPage() {
     actor_id: notification.actor_id ?? null,
     read_at: notification.read_at ?? null,
   }));
-  const visibleNotifications = filterNotifications(notifications, projectFilter);
+  const visibleNotifications = filterNotifications(notifications, projectFilter, kindFilter);
   const unreadCount = visibleNotifications.filter((notification) => notification.read_at === null && !readConfirmedIds.has(notification.id)).length;
   const projects = useMemo(
     () => navigationQuery.data?.organizations.flatMap((organization) => organization.teams.flatMap((team) => team.projects.map((project) => ({ id: project.id, label: `${project.name} · ${team.key}` })))) ?? [],
     [navigationQuery.data],
   );
-  const updateProjectFilter = (nextProject: string) => {
-    void navigate({ replace: true, search: () => (nextProject === "all" ? {} : { project: nextProject }) as never });
+  const updateInboxFilters = (next: { project?: string; kind?: string }) => {
+    const project = next.project ?? projectFilter;
+    const kind = next.kind ?? kindFilter;
+    void navigate({ replace: true, search: () => ({ ...(project === "all" ? {} : { project }), ...(kind === "all" ? {} : { kind }) }) as never });
   };
   const [readPendingIds, setReadPendingIds] = useState<Set<string>>(() => new Set());
   const markReadMutation = useMutation({
@@ -93,9 +96,13 @@ export function InboxPage() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <label className="sr-only" htmlFor="inbox-project-filter">Filter inbox by project</label>
-            <select id="inbox-project-filter" value={projectFilter} onChange={(event) => updateProjectFilter(event.target.value)} className="h-11 min-w-0 max-w-full rounded-md border border-input bg-background px-2 text-xs sm:h-8">
+            <select id="inbox-project-filter" value={projectFilter} onChange={(event) => updateInboxFilters({ project: event.target.value })} className="h-11 min-w-0 max-w-full rounded-md border border-input bg-background px-2 text-xs sm:h-8">
               <option value="all">All projects</option>
               {projects.map((project) => <option key={project.id} value={project.id}>{project.label}</option>)}
+            </select>
+            <label className="sr-only" htmlFor="inbox-kind-filter">Filter inbox by type</label>
+            <select id="inbox-kind-filter" value={kindFilter} onChange={(event) => updateInboxFilters({ kind: event.target.value })} className="h-11 min-w-0 max-w-full rounded-md border border-input bg-background px-2 text-xs sm:h-8">
+              <option value="all">All types</option><option value="approval">Approvals</option><option value="assignment">Assignments</option><option value="takeover">Takeovers</option><option value="lease">Leases</option><option value="comment">Comments</option><option value="invitation">Invitations</option>
             </select>
             <span className="text-xs text-muted-foreground">{unreadCount} unread</span>
           </div>
