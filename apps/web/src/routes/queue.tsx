@@ -17,11 +17,11 @@ import { useNavigation } from "../hooks/use-navigation";
 import { createQueueCommandGroups } from "../components/queue/queue-command-groups";
 import { QueueList } from "../components/queue/queue-list";
 import { QueueToolbar } from "../components/queue/queue-toolbar";
-import { QueueBulkActionBar, QueueDisplayMenu, QueueFilterChips, QueueFilterMenu, QueueSavedViews } from "../components/queue/queue-controls";
+import { QueueBulkActionBar, QueueBulkResultSummary, QueueDisplayMenu, QueueFilterChips, QueueFilterMenu, QueueSavedViews } from "../components/queue/queue-controls";
 import { ProjectHeader, type ProjectViewTab } from "../components/project/project-header";
 import { ProjectShell } from "../components/project/project-shell";
 import { ProjectSidebar } from "../components/project/project-sidebar";
-import type { QueueBulkAction, QueueFilter, QueueMutationFeedback, QueueView } from "../components/queue/types";
+import type { QueueBulkAction, QueueBulkResult, QueueFilter, QueueMutationFeedback, QueueView } from "../components/queue/types";
 import { moveQueueSelection, parseQueueSearch, serializeQueueSearch, type QueueSearchState } from "../data/queue-search";
 import { LazyIssueCreateDialog } from "../components/issues/lazy-issue-create-dialog";
 import type { IssueStatus } from "../components/issues/issue-status-menu";
@@ -57,6 +57,7 @@ export function QueuePage({ initialFilter = "all", initialView = "all", teamId, 
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
   const [selectedIssueIds, setSelectedIssueIds] = useState<Set<string>>(() => new Set());
   const [feedbackByIssueId, setFeedbackByIssueId] = useState<Record<string, QueueMutationFeedback>>({});
+  const [bulkResult, setBulkResult] = useState<QueueBulkResult | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const navigate = useNavigate();
   const appLogout = useAppLogout();
@@ -183,16 +184,21 @@ export function QueuePage({ initialFilter = "all", initialView = "all", teamId, 
   });
   const applyBulkAction = async (action: QueueBulkAction) => {
     const selected = allItems.filter((item) => selectedIssueIds.has(item.issueId));
-    await Promise.all(selected.map(async (item) => {
+    setBulkResult(null);
+    const outcomes = await Promise.all(selected.map(async (item) => {
       try {
         if (action.kind === "status") await statusMutation.mutateAsync({ item, status: action.value });
         else if (action.kind === "importance") await importanceMutation.mutateAsync({ item, importance: action.value });
         else if (action.kind === "label") await labelsMutation.mutateAsync({ item, label: action.value });
         else await assigneeMutation.mutateAsync({ item, accountId: action.value });
+        return true;
       } catch {
         // The individual mutation owns the rejected acknowledgement for this row.
+        return false;
       }
     }));
+    const confirmed = outcomes.filter(Boolean).length;
+    setBulkResult({ total: outcomes.length, confirmed, rejected: outcomes.length - confirmed });
     setSelectedIssueIds(new Set());
   };
   const allItems = useMemo(
@@ -384,6 +390,7 @@ export function QueuePage({ initialFilter = "all", initialView = "all", teamId, 
       />
       {guided ? <section className="mx-4 my-3 grid gap-3 rounded-lg border border-primary/30 bg-primary/5 p-4 text-sm" aria-labelledby="getting-started-title"><div className="flex items-start justify-between gap-3"><div><h2 id="getting-started-title" className="font-medium">A quick tour of Riichi</h2><p className="mt-1 text-xs text-muted-foreground">Start with the queue, then explore the human and agent workflows.</p></div><Button variant="ghost" size="sm" className="h-8" onClick={() => void navigate({ search: () => ({ ...serializeQueueSearch(searchState) }) as never, replace: true })}>Dismiss</Button></div>{activeMembership?.role === "owner" || activeMembership?.role === "admin" ? <div className="flex flex-wrap items-center gap-2 rounded-md border border-border/60 bg-background/50 p-3 text-xs"><span className="text-muted-foreground">Want real examples?</span><Button size="sm" className="h-8" onClick={() => sampleMutation.mutate()} disabled={sampleMutation.isPending}>{sampleMutation.isPending ? "Creating sample…" : "Create guided sample"}</Button>{sampleMutation.isSuccess ? <span role="status" className="text-emerald-400">Sample workflow is ready.</span> : null}{sampleMutation.error ? <span role="alert" className="text-destructive">{sampleMutation.error.message}</span> : null}</div> : null}<div className="grid gap-2 sm:grid-cols-4"><Link className="rounded-md border border-border/60 bg-background/60 p-2 text-xs hover:bg-muted/50" to="/$organizationSlug/issues" params={{ organizationSlug }}><span className="font-medium">1. Triage work</span><span className="mt-1 block text-muted-foreground">Filter and open an issue.</span></Link><Link className="rounded-md border border-border/60 bg-background/60 p-2 text-xs hover:bg-muted/50" to="/$organizationSlug/agents" params={{ organizationSlug }}><span className="font-medium">2. Agent workflow</span><span className="mt-1 block text-muted-foreground">Inspect claim and report surfaces.</span></Link><Link className="rounded-md border border-border/60 bg-background/60 p-2 text-xs hover:bg-muted/50" to="/$organizationSlug/approvals" params={{ organizationSlug }}><span className="font-medium">3. Approvals</span><span className="mt-1 block text-muted-foreground">Review versioned decisions.</span></Link><Link className="rounded-md border border-border/60 bg-background/60 p-2 text-xs hover:bg-muted/50" to="/$organizationSlug/inbox" params={{ organizationSlug }}><span className="font-medium">4. Inbox</span><span className="mt-1 block text-muted-foreground">Follow actionable notifications.</span></Link></div></section> : null}
       {selectedIssueIds.size > 0 ? <QueueBulkActionBar count={selectedIssueIds.size} labels={[...new Set(allItems.flatMap((item) => item.labels))].sort()} accountId={meQuery.data?.account_id} onSelectAll={() => setSelectedIssueIds(new Set(visibleItems.map((item) => item.issueId)))} onClear={() => setSelectedIssueIds(new Set())} onApply={(action) => void applyBulkAction(action)} /> : null}
+      {bulkResult ? <QueueBulkResultSummary result={bulkResult} onDismiss={() => setBulkResult(null)} /> : null}
       <QueueFilterChips state={searchState} items={allItems} onChange={(next) => updateSearch(next, true)} />
       <QueueList
         organizationSlug={organizationSlug}

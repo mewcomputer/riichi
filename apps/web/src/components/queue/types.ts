@@ -21,6 +21,12 @@ export type QueueMutationFeedback = {
   message?: string;
 };
 
+export type QueueBulkResult = {
+  total: number;
+  confirmed: number;
+  rejected: number;
+};
+
 export type QueueBulkAction =
   | { kind: "status"; value: IssueStatus }
   | { kind: "importance"; value: IssueImportance }

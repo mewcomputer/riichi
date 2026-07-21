@@ -9,11 +9,21 @@ import { activeQueueFilterChips, type QueueSearchState } from "@/data/queue-sear
 import type { QueueItem } from "@/data/queue";
 import { issueImportanceLabel, type IssueImportance } from "@/components/issues/issue-importance-menu";
 import { issueStatuses, type IssueStatus } from "@/components/issues/issue-status-menu";
-import type { QueueAdvancedFilter, QueueBulkAction } from "./types";
+import type { QueueAdvancedFilter, QueueBulkAction, QueueBulkResult } from "./types";
 import type { SavedView } from "@/lib/api";
 
 export function requiresBulkActionConfirmation(action: QueueBulkAction) {
   return action.kind === "status" && action.value === "canceled";
+}
+
+export function bulkResultCopy(result: QueueBulkResult) {
+  const parts = [`${result.confirmed} saved`];
+  if (result.rejected > 0) parts.push(`${result.rejected} rejected`);
+  return parts.join(", ");
+}
+
+export function QueueBulkResultSummary({ result, onDismiss }: { result: QueueBulkResult; onDismiss: () => void }) {
+  return <div role="status" className="flex items-center gap-2 border-b border-border/50 bg-muted/10 px-4 py-1.5 text-xs"><span>{bulkResultCopy(result)}{result.total > 1 ? ` of ${result.total}` : ""}</span>{result.rejected > 0 ? <span className="text-destructive">Review rejected rows.</span> : null}<Button variant="ghost" size="sm" className="ml-auto h-6 px-2 text-xs" onClick={onDismiss}>Dismiss</Button></div>;
 }
 
 export function QueueSavedViews({ views, onApply, onSave, onDelete }: {

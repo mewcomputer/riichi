@@ -32,7 +32,7 @@ boundary while adding familiar navigation and feedback patterns:
 | Slice | Evidence | State |
 | --- | --- | --- |
 | Queue filters, URL state, keyboard movement, and saved views | Queue search tests, shortcut-reference contract coverage, account-owned saved-view API, and generated API contract | shipped |
-| Per-item queue and issue mutation acknowledgement | Queue, issue-detail, and approval feedback states with frontend coverage | shipped |
+| Per-item queue and issue mutation acknowledgement | Queue, issue-detail, and approval feedback states with frontend coverage; bulk results retain row-level acknowledgements and show confirmed/rejected totals | shipped |
 | Actionable inbox and approval lifecycle state | Server-enriched approval state scoped to current project access | shipped |
 | First-use terminology hints | Dismissible issue-detail hint for lease, fencing token, and approval | shipped |
 | Guided sample workspace with agent claim/report and recovery fixtures | Admin-only onboarding-sample command creates PostgreSQL-backed issues, a role/session, fenced claim/report history, approval, and recovery checklist; authenticated API integration coverage verifies the response, persisted marker, and idempotent repeat | shipped |
