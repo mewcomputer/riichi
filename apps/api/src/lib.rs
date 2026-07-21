@@ -1,3 +1,5 @@
+#![recursion_limit = "256"]
+
 use std::{convert::Infallible, env};
 
 use axum::{
@@ -36,6 +38,7 @@ mod github;
 mod issues;
 mod navigation;
 mod projects;
+mod views;
 
 use agent_protocol::*;
 use agents::*;
@@ -46,6 +49,7 @@ use github::*;
 use issues::*;
 use navigation::*;
 use projects::*;
+use views::*;
 
 #[derive(Debug, Serialize)]
 pub struct HealthResponse {
@@ -144,6 +148,11 @@ fn app_with_optional_auth_and_electric_url_and_attachment_store(
             get(human_avatar).put(upload_human_avatar).delete(delete_human_avatar),
         )
         .route("/api/v1/navigation", get(navigation))
+        .route(
+            "/api/v1/views",
+            get(list_saved_views).post(save_view),
+        )
+        .route("/api/v1/views/{view_id}", delete(delete_saved_view))
         .route(
             "/api/v1/organizations/{organization_id}/documents",
             get(list_organization_documents).post(create_organization_document),
@@ -485,6 +494,8 @@ pub fn openapi_document_value() -> Value {
             "/api/v1/inbox/{notification_id}/read": {"post": {"operationId": "markInboxNotificationRead", "parameters": [{"name": "notification_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}], "responses": {"204": {"description": "Notification marked read"}}}},
             "/api/v1/teams/{team_id}/agents": {"get": {"operationId": "getTeamAgentRoster", "parameters": [{"name": "team_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}], "responses": {"200": {"description": "Team agent roster", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/AgentRoster"}}}}}}}
             ,"/api/v1/navigation": {"get": {"operationId": "getNavigation", "responses": {"200": {"description": "Accessible organizations, projects, and teams", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/NavigationResponse"}}}}}}}
+            ,"/api/v1/views": {"get": {"operationId": "listSavedViews", "responses": {"200": {"description": "Account-owned saved queue views", "content": {"application/json": {"schema": {"type": "array", "items": {"$ref": "#/components/schemas/SavedView"}}}}}}}, "post": {"operationId": "saveSavedView", "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/SaveViewRequest"}}}}, "responses": {"200": {"description": "Saved queue view", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/SavedView"}}}}}}}
+            ,"/api/v1/views/{view_id}": {"delete": {"operationId": "deleteSavedView", "parameters": [{"name": "view_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}], "responses": {"204": {"description": "Saved queue view deleted"}}}}
             ,"/api/v1/issues": {"get": {"operationId": "getAllIssues", "responses": {"200": {"description": "Accessible human issues"}}}}
             ,"/api/v1/issues/{issue_id}": {"get": {"operationId": "getGlobalIssue", "parameters": [{"name": "issue_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}], "responses": {"200": {"description": "Issue"}}}}
             ,"/api/v1/teams/{team_id}/issues": {"get": {"operationId": "getTeamIssues", "parameters": [{"name": "team_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}], "responses": {"200": {"description": "Team issues"}}}, "post": {"operationId": "createTeamIssue", "responses": {"200": {"description": "Created issue"}}}}
@@ -518,6 +529,8 @@ pub fn openapi_document_value() -> Value {
             "NavigationTeam": {"type": "object", "required": ["id", "name", "key", "emoji", "projects", "views"], "properties": {"id": {"type": "string", "format": "uuid"}, "name": {"type": "string"}, "key": {"type": "string"}, "emoji": {"type": ["string", "null"]}, "projects": {"type": "array", "items": {"$ref": "#/components/schemas/NavigationProject"}}, "views": {"type": "array", "items": {"$ref": "#/components/schemas/NavigationView"}}}},
             "NavigationProject": {"type": "object", "required": ["id", "name", "role"], "properties": {"id": {"type": "string", "format": "uuid"}, "name": {"type": "string"}, "role": {"type": "string"}}},
             "NavigationView": {"type": "object", "required": ["id", "name"], "properties": {"id": {"type": "string", "format": "uuid"}, "name": {"type": "string"}}}
+            ,"SavedView": {"type": "object", "required": ["id", "account_id", "name", "filters", "created_at", "updated_at"], "properties": {"id": {"type": "string", "format": "uuid"}, "account_id": {"type": "string", "format": "uuid"}, "name": {"type": "string"}, "filters": {"type": "object"}, "created_at": {"type": "string", "format": "date-time"}, "updated_at": {"type": "string", "format": "date-time"}}}
+            ,"SaveViewRequest": {"type": "object", "required": ["name", "filters"], "properties": {"name": {"type": "string", "maxLength": 80}, "filters": {"type": "object"}}}
             ,"LoroFrontier": {"type": "object", "required": ["peer_id", "counter"], "properties": {"peer_id": {"type": "string"}, "counter": {"type": "integer", "format": "int32"}}}
             ,"ApplyLoroUpdateRequest": {"type": "object", "required": ["update_id", "previous_frontiers", "payload_base64"], "properties": {"schema_version": {"type": ["integer", "null"]}, "update_id": {"type": "string", "format": "uuid"}, "idempotency_key": {"type": ["string", "null"]}, "previous_frontiers": {"type": "array", "items": {"$ref": "#/components/schemas/LoroFrontier"}}, "payload_base64": {"type": "string"}}}
             ,"ApplyLoroUpdateResponse": {"type": "object", "required": ["update_id", "document_id", "source", "previous_frontiers", "resulting_frontiers", "accepted_at", "replayed"], "properties": {"update_id": {"type": "string", "format": "uuid"}, "document_id": {"type": "string", "format": "uuid"}, "source": {"type": "string"}, "previous_frontiers": {"type": "array", "items": {"$ref": "#/components/schemas/LoroFrontier"}}, "resulting_frontiers": {"type": "array", "items": {"$ref": "#/components/schemas/LoroFrontier"}}, "accepted_at": {"type": "string", "format": "date-time"}, "replayed": {"type": "boolean"}}}
@@ -1894,6 +1907,9 @@ mod tests {
         assert!(document["paths"]["/api/v1/sync/navigation"].is_object());
         assert!(document["paths"]["/api/v1/sync/approvals"].is_object());
         assert!(document["paths"]["/api/v1/teams/{team_id}/agents"].is_object());
+        assert!(document["paths"]["/api/v1/views"]["get"].is_object());
+        assert!(document["paths"]["/api/v1/views"]["post"].is_object());
+        assert!(document["paths"]["/api/v1/views/{view_id}"]["delete"].is_object());
         assert_eq!(
             document["paths"]["/api/v1/documents/{document_id}/loro-snapshot"]["get"]["responses"]
                 ["200"]["content"]["application/octet-stream"]["schema"]["format"],

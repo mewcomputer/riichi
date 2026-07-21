@@ -1,12 +1,48 @@
 import { Filter, SlidersHorizontal, X } from "lucide-react";
+import * as React from "react";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { activeQueueFilterChips, type QueueSearchState } from "@/data/queue-search";
 import type { QueueItem } from "@/data/queue";
 import { issueImportanceLabel, type IssueImportance } from "@/components/issues/issue-importance-menu";
 import { issueStatuses, type IssueStatus } from "@/components/issues/issue-status-menu";
 import type { QueueAdvancedFilter, QueueBulkAction } from "./types";
+import type { SavedView } from "@/lib/api";
+
+export function QueueSavedViews({ views, onApply, onSave, onDelete }: {
+  views: SavedView[];
+  onApply: (view: SavedView) => void;
+  onSave: (name: string) => void;
+  onDelete: (view: SavedView) => void;
+}) {
+  const [open, setOpen] = React.useState(false);
+  const [name, setName] = React.useState("");
+  return <>
+    <DropdownMenu>
+      <DropdownMenuTrigger render={<Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-muted-foreground" aria-label="Saved views" />}>Views</DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuLabel>Saved views</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {views.length ? views.map((view) => <div key={view.id} className="flex items-center gap-1 px-1">
+          <DropdownMenuItem className="min-w-0 flex-1" onClick={() => onApply(view)}><span className="truncate">{view.name}</span></DropdownMenuItem>
+          <button type="button" className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground" aria-label={`Delete ${view.name}`} onClick={() => onDelete(view)}>×</button>
+        </div>) : <p className="px-2 py-1.5 text-xs text-muted-foreground">No saved views yet.</p>}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => setOpen(true)}>Save current filters…</DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>Save current filters</DialogTitle><DialogDescription>Give this queue view a name. It will be available on your account.</DialogDescription></DialogHeader>
+        <Input value={name} maxLength={80} autoFocus placeholder="e.g. urgent triage" onChange={(event) => setName(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && name.trim()) { onSave(name.trim()); setName(""); setOpen(false); } }} />
+        <DialogFooter><DialogClose render={<Button variant="outline" />}>Cancel</DialogClose><Button disabled={!name.trim()} onClick={() => { onSave(name.trim()); setName(""); setOpen(false); }}>Save view</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
+  </>;
+}
 
 export function QueueFilterMenu({ items, advancedFilter, onAdvancedFilterChange }: { items: QueueItem[]; advancedFilter: QueueAdvancedFilter; onAdvancedFilterChange: (filter: QueueAdvancedFilter) => void }) {
   const teams = [...new Map(items.map((item) => [item.teamKey, item.teamName])).entries()];

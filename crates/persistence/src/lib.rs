@@ -16,6 +16,7 @@ mod outbox;
 mod reports;
 mod sessions;
 mod triage;
+mod views;
 
 use chrono::{DateTime, Duration, Utc};
 use error::PersistenceError;
@@ -56,6 +57,7 @@ pub use models::{
     ReportBatchResult, ReportInput as Report, ReportOperation, SubissueRecord,
 };
 pub use organization::NavigationRow;
+pub use views::SavedViewRecord;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OutboxRetryOutcome {

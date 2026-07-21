@@ -7,7 +7,7 @@ import { Archive, CircleDot, Layers3, UserRound } from "lucide-react";
 
 import { Kbd } from "@/components/ui/kbd";
 import { Button } from "@/components/ui/button";
-import { ApiError, createIssue, getCurrentUser } from "@/lib/api";
+import { ApiError, createIssue, deleteSavedView, getCurrentUser, getSavedViews, saveSavedView } from "@/lib/api";
 import { addQueueLabel, matchesQueueAdvancedFilter, matchesQueueView, toQueueItem } from "../data/queue";
 import { useAllIssues } from "../hooks/use-all-issues";
 import { useTeamIssues } from "../hooks/use-team-issues";
@@ -17,7 +17,7 @@ import { useNavigation } from "../hooks/use-navigation";
 import { createQueueCommandGroups } from "../components/queue/queue-command-groups";
 import { QueueList } from "../components/queue/queue-list";
 import { QueueToolbar } from "../components/queue/queue-toolbar";
-import { QueueBulkActionBar, QueueDisplayMenu, QueueFilterChips, QueueFilterMenu } from "../components/queue/queue-controls";
+import { QueueBulkActionBar, QueueDisplayMenu, QueueFilterChips, QueueFilterMenu, QueueSavedViews } from "../components/queue/queue-controls";
 import { ProjectHeader, type ProjectViewTab } from "../components/project/project-header";
 import { ProjectShell } from "../components/project/project-shell";
 import { ProjectSidebar } from "../components/project/project-sidebar";
@@ -78,6 +78,7 @@ export function QueuePage({ initialFilter = "all", initialView = "all", teamId, 
     retry: false,
   });
   const navigationQuery = useNavigation();
+  const savedViewsQuery = useQuery({ queryKey: ["saved-views"], queryFn: getSavedViews, retry: false });
   const organizationSlug = organizationSlugProp ?? toOrganizationSlug(navigationQuery.data?.organizations[0]?.name ?? "Riichi");
   const { activeMembership, projectId, selectProject } = useActiveProject(meQuery.data?.memberships);
   const projectName = activeMembership?.project_name ?? "riichi";
@@ -99,6 +100,14 @@ export function QueuePage({ initialFilter = "all", initialView = "all", teamId, 
       void queryClient.invalidateQueries({ queryKey: ["issues", "all"] });
       void navigate({ to: "/$organizationSlug/teams/$teamKey/issues/$issueId", params: { organizationSlug, teamKey: issue.team_key, issueId: issue.id } });
     },
+  });
+  const saveViewMutation = useMutation({
+    mutationFn: (name: string) => saveSavedView(name, serializeQueueSearch(searchState)),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["saved-views"] }),
+  });
+  const deleteViewMutation = useMutation({
+    mutationFn: (viewId: string) => deleteSavedView(viewId),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["saved-views"] }),
   });
   const statusMutation = useMutation({
     mutationFn: async ({ item, status }: { item: ReturnType<typeof toQueueItem>; status: IssueStatus }) => {
@@ -352,7 +361,7 @@ export function QueuePage({ initialFilter = "all", initialView = "all", teamId, 
         view={view}
         views={queueViews}
         onViewChange={(nextView) => updateSearch({ view: nextView as QueueView })}
-        actions={<><QueueFilterMenu items={allItems} advancedFilter={advancedFilter} onAdvancedFilterChange={(nextFilter) => updateSearch({ advancedFilter: nextFilter })} /><QueueDisplayMenu showDetails={showDetails} onShowDetailsChange={(nextShowDetails) => updateSearch({ showDetails: nextShowDetails })} /></>}
+        actions={<><QueueSavedViews views={savedViewsQuery.data ?? []} onApply={(savedView) => updateSearch(parseQueueSearch(savedView.filters), true)} onSave={(name) => saveViewMutation.mutate(name)} onDelete={(savedView) => deleteViewMutation.mutate(savedView.id)} /><QueueFilterMenu items={allItems} advancedFilter={advancedFilter} onAdvancedFilterChange={(nextFilter) => updateSearch({ advancedFilter: nextFilter })} /><QueueDisplayMenu showDetails={showDetails} onShowDetailsChange={(nextShowDetails) => updateSearch({ showDetails: nextShowDetails })} /></>}
       />
       <QueueToolbar
         query={query}

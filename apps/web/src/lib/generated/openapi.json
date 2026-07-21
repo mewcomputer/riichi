@@ -500,6 +500,57 @@
         ],
         "type": "object"
       },
+      "SaveViewRequest": {
+        "properties": {
+          "filters": {
+            "type": "object"
+          },
+          "name": {
+            "maxLength": 80,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "filters"
+        ],
+        "type": "object"
+      },
+      "SavedView": {
+        "properties": {
+          "account_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "filters": {
+            "type": "object"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "account_id",
+          "name",
+          "filters",
+          "created_at",
+          "updated_at"
+        ],
+        "type": "object"
+      },
       "UnreadCountResponse": {
         "properties": {
           "unread_count": {
@@ -1736,6 +1787,72 @@
           },
           "503": {
             "description": "Electric synchronization is not configured"
+          }
+        }
+      }
+    },
+    "/api/v1/views": {
+      "get": {
+        "operationId": "listSavedViews",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SavedView"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Account-owned saved queue views"
+          }
+        }
+      },
+      "post": {
+        "operationId": "saveSavedView",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveViewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedView"
+                }
+              }
+            },
+            "description": "Saved queue view"
+          }
+        }
+      }
+    },
+    "/api/v1/views/{view_id}": {
+      "delete": {
+        "operationId": "deleteSavedView",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "view_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Saved queue view deleted"
           }
         }
       }

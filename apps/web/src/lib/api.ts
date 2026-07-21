@@ -49,6 +49,15 @@ export type HumanQueueIssue = {
   labels: string[];
 };
 
+export type SavedView = {
+  id: string;
+  account_id: string;
+  name: string;
+  filters: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+};
+
 export type IssueEdge = {
   id: string;
   source_issue_id: string;
@@ -393,6 +402,18 @@ export async function getNavigation() {
     );
   }
   return data;
+}
+
+export function getSavedViews() {
+  return getJson<SavedView[]>('/api/v1/views');
+}
+
+export function saveSavedView(name: string, filters: Record<string, unknown>) {
+  return sendJson<SavedView>('/api/v1/views', 'POST', { name, filters });
+}
+
+export function deleteSavedView(viewId: string) {
+  return sendNoContent(`/api/v1/views/${encodeURIComponent(viewId)}`, 'DELETE');
 }
 
 export function getPendingApprovals() {

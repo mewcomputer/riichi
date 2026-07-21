@@ -38,6 +38,22 @@ describe("queue search state", () => {
     expect(serializeQueueSearch(state)).toEqual({ view: "my_work" });
   });
 
+  it("round-trips a named view's filter payload through the URL contract", () => {
+    const state = parseQueueSearch({
+      filter: "attention",
+      view: "my_work",
+      q: "agent",
+      details: "0",
+      status: "blocked",
+      importance: "urgent",
+      team: "eng",
+      project: "project-1",
+      assignee: "me",
+      label: "needs-spec",
+    });
+    expect(parseQueueSearch(serializeQueueSearch(state))).toEqual(state);
+  });
+
   it("omits defaults so copied URLs stay short", () => {
     expect(serializeQueueSearch({
       filter: "all",
