@@ -62,6 +62,68 @@ async fn ready_issue(database: &Database, project_id: Uuid, key: &str, title: &s
 
 #[tokio::test]
 #[ignore = "starts a disposable PostgreSQL container"]
+async fn sessions_cannot_cross_project_role_boundaries() {
+    let database = database().await;
+    let first_project = Uuid::now_v7();
+    let second_project = Uuid::now_v7();
+    let role_id = Uuid::now_v7();
+    let session_id = Uuid::now_v7();
+    database
+        .create_project(first_project, "first project")
+        .await
+        .unwrap();
+    database
+        .create_project(second_project, "second project")
+        .await
+        .unwrap();
+    let first_team: Uuid =
+        sqlx::query_scalar("SELECT team_id FROM project_teams WHERE project_id = $1 LIMIT 1")
+            .bind(first_project)
+            .fetch_one(database.pool())
+            .await
+            .unwrap();
+    sqlx::query("UPDATE project_teams SET team_id = $2 WHERE project_id = $1")
+        .bind(second_project)
+        .bind(first_team)
+        .execute(database.pool())
+        .await
+        .unwrap();
+    database
+        .create_agent_role(role_id, first_project, "first role")
+        .await
+        .unwrap();
+
+    let result = database
+        .create_session(
+            session_id,
+            second_project,
+            role_id,
+            Duration::hours(1),
+            "cross-project-token",
+        )
+        .await;
+    assert!(matches!(result, Err(Error::AgentRoleNotFound)));
+}
+
+#[tokio::test]
+#[ignore = "starts a disposable PostgreSQL container"]
+async fn onboarding_claim_has_one_winner_per_project() {
+    let database = database().await;
+    let project_id = Uuid::now_v7();
+    database
+        .create_project(project_id, "onboarding claim project")
+        .await
+        .unwrap();
+
+    assert!(database.claim_onboarding_sample(project_id).await.unwrap());
+    assert!(matches!(
+        database.claim_onboarding_sample(project_id).await,
+        Err(Error::Contended)
+    ));
+}
+
+#[tokio::test]
+#[ignore = "starts a disposable PostgreSQL container"]
 async fn team_agent_roster_preserves_team_and_project_context() {
     let database = database().await;
     let (project_id, session_ids) = fixture(&database, 1).await;

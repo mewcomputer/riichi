@@ -307,9 +307,7 @@ impl Database {
         let role_active = sqlx::query_scalar::<_, bool>(
             "SELECT EXISTS (
                  SELECT 1 FROM agent_roles
-                 WHERE id = $1 AND team_id = (
-                     SELECT team_id FROM project_teams WHERE project_id = $2 ORDER BY team_id LIMIT 1
-                 ) AND revoked_at IS NULL
+                 WHERE id = $1 AND project_id = $2 AND revoked_at IS NULL
              )",
         )
         .bind(agent_role_id)
@@ -346,9 +344,8 @@ impl Database {
                  SELECT 1 FROM sessions s
                  JOIN agent_roles r ON r.id = s.agent_role_id
                  WHERE s.id = $1
-                   AND s.team_id = (
-                       SELECT team_id FROM project_teams WHERE project_id = $2 ORDER BY team_id LIMIT 1
-                   )
+                   AND s.project_id = $2
+                   AND r.project_id = $2
                    AND s.state = 'active'
                    AND s.max_lifetime_ends_at > now()
                    AND s.agent_token_hash = $3

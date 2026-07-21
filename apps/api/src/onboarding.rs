@@ -18,6 +18,21 @@ pub(super) async fn create_onboarding_sample(
     }
 
     let application = &state.application;
+    if !application
+        .database()
+        .claim_onboarding_sample(project_id)
+        .await
+        .map_err(ApiError::from)?
+    {
+        return Ok(Json(
+            application
+                .database()
+                .onboarding_sample(project_id)
+                .await
+                .map_err(ApiError::from)?
+                .ok_or(ApiError::NotFound)?,
+        ));
+    }
     let role_id = application
         .create_agent_role_with_id(
             project_id,
@@ -96,7 +111,7 @@ pub(super) async fn create_onboarding_sample(
         )
         .await
         .map_err(ApiError::from)?;
-    let recovery_claim = application
+    let _recovery_claim = application
         .claim(
             project_id,
             session_id,
@@ -137,7 +152,6 @@ pub(super) async fn create_onboarding_sample(
         recovery_checklist_id: checklist.id,
         created_at: chrono::Utc::now(),
     };
-    let _ = recovery_claim;
     application
         .database()
         .record_onboarding_sample(&sample)
