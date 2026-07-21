@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { HumanQueueIssue } from "@/lib/api";
-import { deriveQueueState, formatQueueAge, groupQueueItemsByStatus, matchesQueueAdvancedFilter, queueReason, toQueueItem } from "./queue";
+import { deriveQueueState, formatQueueAge, groupQueueItemsByStatus, matchesQueueAdvancedFilter, matchesQueueView, queueReason, toQueueItem } from "./queue";
 
 const baseIssue: HumanQueueIssue = {
   team_id: "team-id",
@@ -91,6 +91,14 @@ describe("queue state mapping", () => {
     expect(matchesQueueAdvancedFilter(item, { ...baseFilter, assignee: "unassigned" })).toBe(false);
     expect(matchesQueueAdvancedFilter(item, { ...baseFilter, assignee: "all", label: "customer" })).toBe(true);
     expect(matchesQueueAdvancedFilter(item, { ...baseFilter, assignee: "all", label: "billing" })).toBe(false);
+  });
+
+  it("keeps the My work preset scoped to the authenticated account", () => {
+    const assigned = toQueueItem({ ...baseIssue, assignee_account_id: "account-1" });
+    const unassigned = toQueueItem(baseIssue);
+    expect(matchesQueueView(assigned, "my_work", "account-1")).toBe(true);
+    expect(matchesQueueView(assigned, "my_work", "account-2")).toBe(false);
+    expect(matchesQueueView(unassigned, "my_work", "account-1")).toBe(false);
   });
 
   it("keeps issues in separate lifecycle status groups", () => {

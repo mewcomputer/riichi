@@ -2,12 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { useLiveQuery } from "@tanstack/react-db";
-import { Archive, CircleDot, Layers3 } from "lucide-react";
+import { Archive, CircleDot, Layers3, UserRound } from "lucide-react";
 
 import { Kbd } from "@/components/ui/kbd";
 import { Button } from "@/components/ui/button";
 import { ApiError, createIssue, getCurrentUser } from "@/lib/api";
-import { matchesQueueAdvancedFilter, toQueueItem } from "../data/queue";
+import { matchesQueueAdvancedFilter, matchesQueueView, toQueueItem } from "../data/queue";
 import { useAllIssues } from "../hooks/use-all-issues";
 import { useTeamIssues } from "../hooks/use-team-issues";
 import { useAppLogout } from "../hooks/use-app-logout";
@@ -200,9 +200,7 @@ export function QueuePage({ initialFilter = "all", initialView = "all", teamId, 
     const normalizedQuery = query.trim().toLowerCase();
     return allItems.filter((item) => {
       const matchesFilter = filter === "all" || item.state === filter;
-      const matchesView =
-        view === "all" ||
-        (view === "active" ? item.state !== "held" : item.state === "held");
+      const matchesView = matchesQueueView(item, view, meQuery.data?.account_id);
       const matchesQuery =
         !normalizedQuery ||
         `${item.id} ${item.title} ${item.description} ${item.reason}`
@@ -265,6 +263,12 @@ export function QueuePage({ initialFilter = "all", initialView = "all", teamId, 
       label: "Backlog",
       icon: Archive,
       count: allItems.filter((item) => item.state === "held").length,
+    },
+    {
+      value: "my_work",
+      label: "My work",
+      icon: UserRound,
+      count: allItems.filter((item) => item.assigneeAccountId === meQuery.data?.account_id).length,
     },
   ];
 

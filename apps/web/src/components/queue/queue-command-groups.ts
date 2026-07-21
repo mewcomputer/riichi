@@ -1,4 +1,4 @@
-import { Archive, CircleCheck, Layers3, Plus } from "lucide-react";
+import { Archive, CircleCheck, Layers3, Plus, UserRound } from "lucide-react";
 
 import type { CommandMenuGroup } from "@/components/command/command-menu";
 import type { QueueItem } from "@/data/queue";
@@ -25,6 +25,7 @@ export function createQueueCommandGroups({
         { id: "create-issue", label: "New issue", icon: Plus, shortcut: "C", onSelect: onCreate },
         { id: "show-ready", label: "Show ready issues", icon: CircleCheck, shortcut: "F R", onSelect: () => onFilterChange("ready") },
         { id: "open-backlog", label: "Open backlog", icon: Archive, shortcut: "G B", onSelect: () => onViewChange("backlog") },
+        { id: "open-my-work", label: "Open my work", icon: UserRound, onSelect: () => onViewChange("my_work") },
       ],
     },
     {

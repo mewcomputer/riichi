@@ -1,5 +1,5 @@
 import type { HumanQueueIssue } from "@/lib/api";
-import type { QueueAdvancedFilter } from "@/components/queue/types";
+import type { QueueAdvancedFilter, QueueView } from "@/components/queue/types";
 import { issueStatuses } from "@/components/issues/issue-status-menu";
 
 export type QueueState = "ready" | "attention" | "held";
@@ -86,6 +86,13 @@ export function matchesQueueAdvancedFilter(item: QueueItem, filter: QueueAdvance
       (filter.assignee === "me" && item.assigneeAccountId === accountId)) &&
     (filter.label === "all" || item.labels.includes(filter.label))
   );
+}
+
+export function matchesQueueView(item: QueueItem, view: QueueView, accountId?: string) {
+  if (view === "all") return true;
+  if (view === "active") return item.state !== "held";
+  if (view === "backlog") return item.state === "held";
+  return item.assigneeAccountId !== null && item.assigneeAccountId === accountId;
 }
 
 export function formatQueueAge(createdAt: string, now = new Date()) {

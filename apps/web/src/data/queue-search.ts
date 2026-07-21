@@ -15,7 +15,7 @@ export type QueueFilterChip = {
 };
 
 const queueFilters = new Set<QueueFilter>(["all", "ready", "attention", "held"]);
-const queueViews = new Set<QueueView>(["all", "active", "backlog"]);
+const queueViews = new Set<QueueView>(["all", "active", "backlog", "my_work"]);
 const queueStatuses = new Set<QueueAdvancedFilter["status"]>([
   "all",
   "triage",

@@ -4,7 +4,7 @@ import type { IssueImportance } from "@/components/issues/issue-importance-menu"
 import type { IssueStatus } from "@/components/issues/issue-status-menu";
 
 export type QueueFilter = "all" | QueueState;
-export type QueueView = "all" | "active" | "backlog";
+export type QueueView = "all" | "active" | "backlog" | "my_work";
 export type QueueAdvancedFilter = {
   status: HumanQueueIssue["status"] | "all";
   importance: HumanQueueIssue["importance"] | "all";

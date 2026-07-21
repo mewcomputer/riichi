@@ -32,6 +32,12 @@ describe("queue search state", () => {
     });
   });
 
+  it("preserves the URL-backed My work preset", () => {
+    const state = parseQueueSearch({ view: "my_work" });
+    expect(state.view).toBe("my_work");
+    expect(serializeQueueSearch(state)).toEqual({ view: "my_work" });
+  });
+
   it("omits defaults so copied URLs stay short", () => {
     expect(serializeQueueSearch({
       filter: "all",
