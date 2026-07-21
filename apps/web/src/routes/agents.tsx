@@ -112,6 +112,14 @@ export function AgentsPage() {
           <Input aria-label="New role name" value={newRoleName} onChange={(event) => setNewRoleName(event.target.value)} placeholder="New agent role" className="h-8 text-xs" />
           <Button size="sm" onClick={() => createRoleMutation.mutate()} disabled={createRoleMutation.isPending || !newRoleName.trim() || !teamId || !agentProjectId}>Create role</Button>
         </div>
+        {!rosterQuery.isPending && roles.length === 0 ? <section className="max-w-2xl rounded-lg border border-primary/25 bg-primary/5 p-4 text-sm" aria-labelledby="agent-setup-title">
+          <h2 id="agent-setup-title" className="font-medium">Connect your first agent</h2>
+          <ol className="mt-2 grid gap-1.5 text-xs text-muted-foreground">
+            <li><span className="font-medium text-foreground">1. Create a role.</span> Give the agent a bounded capability set.</li>
+            <li><span className="font-medium text-foreground">2. Issue a session.</span> The token is shown once and expires automatically.</li>
+            <li><span className="font-medium text-foreground">3. Run the CLI.</span> The agent can then discover, claim, and report through Riichi’s fenced protocol.</li>
+          </ol>
+        </section> : null}
         {createRoleMutation.error ? <span className="text-xs text-destructive">{createRoleMutation.error.message}</span> : null}
         {error ? <div className="text-sm text-destructive">{error instanceof ApiError && error.status === 401 ? <a href="/auth/login" className="underline">Sign in</a> : error.message}</div> : null}
         <section className="grid gap-3">
