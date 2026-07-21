@@ -62,6 +62,11 @@ import {
   type IssueMetadataCollection,
 } from "@/lib/metadata-sync";
 
+type ActionFeedback = {
+  state: "pending" | "confirmed" | "rejected";
+  message: string;
+};
+
 function IssueEditor({
   issue,
   projectId,
@@ -110,6 +115,8 @@ function IssueEditor({
   const [collaboratorCapability, setCollaboratorCapability] = useState("comment");
   const [collaboratorMode, setCollaboratorMode] = useState<"auto" | "approval_required">("auto");
   const [subissueDialogOpen, setSubissueDialogOpen] = useState(false);
+  const [recoveryFeedback, setRecoveryFeedback] = useState<ActionFeedback | null>(null);
+  const [approvalFeedback, setApprovalFeedback] = useState<ActionFeedback | null>(null);
   const [relativeTimeNow, setRelativeTimeNow] = useState(() => new Date());
   const descriptionPersistence = useRef<LoroDocumentPersistence | null>(null);
   const initializedDescriptionId = useRef<string | null>(null);
@@ -256,11 +263,14 @@ function IssueEditor({
   };
   const takeoverMutation = useMutation({
     mutationFn: () => takeoverIssue(projectId, issue.id, takeoverReason.trim()),
+    onMutate: () => setRecoveryFeedback({ state: "pending", message: "Creating a recovery checklist…" }),
     onSuccess: (created) => {
       setChecklist(created);
       setTakeoverReason("");
+      setRecoveryFeedback({ state: "confirmed", message: "Recovery checklist created and acknowledged by the server." });
       refresh();
     },
+    onError: (error) => setRecoveryFeedback({ state: "rejected", message: error instanceof Error ? error.message : "Recovery checklist could not be created." }),
   });
   const recoveryMutation = useMutation({
     mutationFn: (action: "release" | "complete") => {
@@ -271,24 +281,38 @@ function IssueEditor({
         ...(action === "complete" ? { resolution_summary: "Recovered by a human operator." } : {}),
       });
     },
-    onSuccess: () => {
+    onMutate: (action) => setRecoveryFeedback({ state: "pending", message: `${action === "release" ? "Reopening for dispatch" : "Completing recovery"} against issue version ${issue.version}…` }),
+    onSuccess: (_updated, action) => {
       setChecklist(null);
+      setRecoveryFeedback({ state: "confirmed", message: action === "release" ? "Issue reopened for dispatch. Server state is confirmed." : "Recovery completed. Server state is confirmed." });
       refresh();
     },
+    onError: (error) => setRecoveryFeedback({ state: "rejected", message: error instanceof Error ? error.message : "Recovery action was rejected." }),
   });
   const approvalMutation = useMutation({
     mutationFn: () => createApprovalRequest(projectId, issue.id, {
       target_version: issue.version,
       proposed_operation: { type: "set_rank", rank: Number(proposedRank) },
     }),
-    onSuccess: setApproval,
+    onMutate: () => setApprovalFeedback({ state: "pending", message: `Submitting rank ${proposedRank} against issue version ${issue.version}…` }),
+    onSuccess: (created) => {
+      setApproval(created);
+      setApprovalFeedback({ state: "confirmed", message: `Approval request is pending against issue version ${created.target_version}.` });
+    },
+    onError: (error) => setApprovalFeedback({ state: "rejected", message: error instanceof Error ? error.message : "Approval request was rejected." }),
   });
   const decisionMutation = useMutation({
     mutationFn: (approve: boolean) => {
       if (!approval) throw new Error("No approval request is open.");
       return decideApprovalRequest(projectId, approval.id, approve);
     },
-    onSuccess: setApproval,
+    onMutate: (approve) => setApprovalFeedback({ state: "pending", message: `${approve ? "Approving" : "Rejecting"} the request against issue version ${approval?.target_version ?? issue.version}…` }),
+    onSuccess: (decided, approve) => {
+      setApproval(decided);
+      setApprovalFeedback({ state: "confirmed", message: `Approval request ${approve ? "approved" : "rejected"}. Server state is confirmed.` });
+      refresh();
+    },
+    onError: (error) => setApprovalFeedback({ state: "rejected", message: error instanceof Error ? error.message : "Approval decision was rejected." }),
   });
   const holdMutation = useMutation({
     mutationFn: () => createIssueHold(projectId, issue.id, { hold_type: "manual", reason: holdReason.trim() }),
@@ -455,7 +479,7 @@ function IssueEditor({
         </div>
         {checklist ? (
             <div className="flex flex-col gap-3 rounded-md border border-orange-400/30 bg-orange-400/5 px-3 py-3 text-xs sm:flex-row sm:items-center sm:justify-between">
-            <span>Recovery checklist open: {checklist.reason}</span>
+            <div className="grid gap-1"><span>Recovery checklist open: {checklist.reason}</span><span className="text-muted-foreground">Actions apply against issue version {issue.version}.</span></div>
             <div className="grid gap-2 sm:flex">
               <Button size="sm" className="h-11 sm:h-8" variant="outline" onClick={() => recoveryMutation.mutate("release")} disabled={recoveryMutation.isPending}>Reopen for dispatch</Button>
               <Button size="sm" className="h-11 sm:h-8" onClick={() => recoveryMutation.mutate("complete")} disabled={recoveryMutation.isPending}>Complete recovery</Button>
@@ -463,6 +487,7 @@ function IssueEditor({
           </div>
         ) : null}
         {takeoverMutation.error || recoveryMutation.error ? <span className="text-xs text-destructive">{(takeoverMutation.error ?? recoveryMutation.error)?.message}</span> : null}
+        {recoveryFeedback ? <p role={recoveryFeedback.state === "rejected" ? "alert" : "status"} className={recoveryFeedback.state === "rejected" ? "text-xs text-destructive" : recoveryFeedback.state === "pending" ? "text-xs text-muted-foreground" : "text-xs text-emerald-400"}>{recoveryFeedback.message}</p> : null}
         </div>
       </details>
       {canApprove && issue.active_lease_id ? (
@@ -496,7 +521,7 @@ function IssueEditor({
       <details className="group rounded-lg border border-border/60 bg-card/20 p-3">
         <summary className="cursor-pointer list-none text-xs font-medium marker:hidden">Approval request</summary>
         <div className="mt-3 grid gap-3">
-          <p className="text-xs text-muted-foreground">Propose a rank change against version {issue.version}.</p>
+          <p className="text-xs text-muted-foreground">Propose rank {proposedRank} against issue version {issue.version}. Approval applies only if that version is still current.</p>
         <div className="flex flex-wrap items-center gap-2">
           <Input aria-label="Proposed rank" value={proposedRank} onChange={(event) => setProposedRank(event.target.value)} className="h-11 w-24 text-xs sm:h-8" type="number" min="0" />
           <Button size="sm" className="h-11 sm:h-8" variant="outline" onClick={() => approvalMutation.mutate()} disabled={approvalMutation.isPending || !Number.isInteger(Number(proposedRank))}>Request approval</Button>
@@ -505,6 +530,7 @@ function IssueEditor({
           {approval?.state === "pending" && canApprove ? <Button size="sm" className="h-11 sm:h-7" variant="ghost" onClick={() => decisionMutation.mutate(false)} disabled={decisionMutation.isPending}>Reject</Button> : null}
         </div>
         {approvalMutation.error || decisionMutation.error ? <span className="text-xs text-destructive">{(approvalMutation.error ?? decisionMutation.error)?.message}</span> : null}
+        {approvalFeedback ? <p role={approvalFeedback.state === "rejected" ? "alert" : "status"} className={approvalFeedback.state === "rejected" ? "text-xs text-destructive" : approvalFeedback.state === "pending" ? "text-xs text-muted-foreground" : "text-xs text-emerald-400"}>{approvalFeedback.message}</p> : null}
         </div>
       </details>
       <details className="group rounded-lg border border-border/60 bg-card/20 p-3">
