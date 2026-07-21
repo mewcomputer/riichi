@@ -52,6 +52,7 @@ import { IssueStatusMenu } from "@/components/issues/issue-status-menu";
 import { IssueImportanceMenu } from "@/components/issues/issue-importance-menu";
 import { LazyIssueCreateDialog } from "@/components/issues/lazy-issue-create-dialog";
 import { IssueActivityTimeline } from "@/components/issues/issue-activity-timeline";
+import { FirstUseTerminologyHint } from "@/components/issues/first-use-terminology-hint";
 import { DocumentEditor } from "@/components/documents/document-editor";
 import { LoroDocumentPersistence } from "@/lib/loro-persistence";
 import { LoroDocumentSession, type LoroSyncState } from "@/lib/loro-document";
@@ -476,6 +477,7 @@ function IssueEditor({
       />
       </main>
       <aside className="grid content-start gap-3 text-sm">
+      <FirstUseTerminologyHint />
       <details className="group rounded-lg border border-border/60 bg-card/20 p-3">
         <summary className="cursor-pointer list-none text-xs font-medium marker:hidden">Ownership and recovery</summary>
         <div className="mt-3 grid gap-3">
