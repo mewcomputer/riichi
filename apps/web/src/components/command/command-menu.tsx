@@ -81,6 +81,7 @@ export function ShortcutReferenceDialog({ open, onOpenChange }: { open: boolean;
     ["⌘ K / Ctrl K", "Open command menu"],
     ["G I", "Open all issues"],
     ["G B", "Open backlog"],
+    ["G M", "Open my work"],
     ["F R", "Show ready issues"],
     ["C", "Create an issue"],
     ["J / K", "Move through queue issues"],

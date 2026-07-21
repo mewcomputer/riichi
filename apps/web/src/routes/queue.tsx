@@ -66,6 +66,7 @@ export function QueuePage({ initialFilter = "all", initialView = "all", teamId, 
   const shortcuts = useMemo(() => [
     { keys: ["c"], onTrigger: () => setCreateOpen(true) },
     { keys: ["g", "b"], onTrigger: () => updateSearch({ view: "backlog" }) },
+    { keys: ["g", "m"], onTrigger: () => updateSearch({ view: "my_work" }) },
     { keys: ["f", "r"], onTrigger: () => updateSearch({ filter: "ready" }) },
   ], [searchState]);
 
