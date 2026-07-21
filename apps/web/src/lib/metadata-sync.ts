@@ -26,11 +26,12 @@ export type IssueMetadataRecord = Pick<
   | "spec_complete"
   | "rank"
   | "labels"
+  | "assignee_account_id"
 > & { version: number; transaction_id: number };
 
 export type IssueMetadataChanges = Partial<Pick<
   IssueMetadataRecord,
-  "title" | "status" | "importance" | "agent_eligible" | "spec_complete" | "rank" | "labels"
+  "title" | "status" | "importance" | "agent_eligible" | "spec_complete" | "rank" | "labels" | "assignee_account_id"
 >>;
 
 export type IssueMetadataCollection = Collection<IssueMetadataRecord>;
@@ -84,6 +85,7 @@ function mutationInput(changes: IssueMetadataChanges, expectedVersion: number) {
     ...(changes.spec_complete === undefined ? {} : { spec_complete: changes.spec_complete }),
     ...(changes.rank === undefined ? {} : { rank: changes.rank }),
     ...(changes.labels === undefined ? {} : { labels: changes.labels }),
+    ...(changes.assignee_account_id === undefined ? {} : { assignee_account_id: changes.assignee_account_id }),
   };
 }
 
@@ -109,6 +111,7 @@ export async function updateIssueMetadata(
     if (changes.spec_complete !== undefined) draft.spec_complete = changes.spec_complete;
     if (changes.rank !== undefined) draft.rank = changes.rank;
     if (changes.labels !== undefined) draft.labels = changes.labels;
+    if (changes.assignee_account_id !== undefined) draft.assignee_account_id = changes.assignee_account_id;
   });
   await transaction.isPersisted.promise;
   return null;

@@ -146,13 +146,26 @@ export function QueuePage({ initialFilter = "all", initialView = "all", teamId, 
       setFeedbackByIssueId((current) => ({ ...current, [item.issueId]: { state: "rejected", message: error instanceof Error ? error.message : "Update failed" } }));
     },
   });
+  const assigneeMutation = useMutation({
+    mutationFn: async ({ item, accountId }: { item: ReturnType<typeof toQueueItem>; accountId: string }) => {
+      return updateIssueMetadata(metadataCollection, item.projectId, item.issueId, { assignee_account_id: accountId });
+    },
+    onMutate: ({ item }) => setFeedbackByIssueId((current) => ({ ...current, [item.issueId]: { state: "pending" } })),
+    onSuccess: (_result, { item }) => {
+      setFeedbackByIssueId((current) => ({ ...current, [item.issueId]: { state: "confirmed" } }));
+      void queryClient.invalidateQueries({ queryKey: ["issues", "all"] });
+      if (teamId) void queryClient.invalidateQueries({ queryKey: ["issues", "team", teamId] });
+    },
+    onError: (error, { item }) => setFeedbackByIssueId((current) => ({ ...current, [item.issueId]: { state: "rejected", message: error instanceof Error ? error.message : "Update failed" } })),
+  });
   const applyBulkAction = async (action: QueueBulkAction) => {
     const selected = allItems.filter((item) => selectedIssueIds.has(item.issueId));
     await Promise.all(selected.map(async (item) => {
       try {
         if (action.kind === "status") await statusMutation.mutateAsync({ item, status: action.value });
         else if (action.kind === "importance") await importanceMutation.mutateAsync({ item, importance: action.value });
-        else await labelsMutation.mutateAsync({ item, label: action.value });
+        else if (action.kind === "label") await labelsMutation.mutateAsync({ item, label: action.value });
+        else await assigneeMutation.mutateAsync({ item, accountId: action.value });
       } catch {
         // The individual mutation owns the rejected acknowledgement for this row.
       }
@@ -344,7 +357,7 @@ export function QueuePage({ initialFilter = "all", initialView = "all", teamId, 
         onRefresh={() => void queueQuery.refetch()}
         onCreate={() => setCreateOpen(true)}
       />
-      {selectedIssueIds.size > 0 ? <QueueBulkActionBar count={selectedIssueIds.size} labels={[...new Set(allItems.flatMap((item) => item.labels))].sort()} onSelectAll={() => setSelectedIssueIds(new Set(visibleItems.map((item) => item.issueId)))} onClear={() => setSelectedIssueIds(new Set())} onApply={(action) => void applyBulkAction(action)} /> : null}
+      {selectedIssueIds.size > 0 ? <QueueBulkActionBar count={selectedIssueIds.size} labels={[...new Set(allItems.flatMap((item) => item.labels))].sort()} accountId={meQuery.data?.account_id} onSelectAll={() => setSelectedIssueIds(new Set(visibleItems.map((item) => item.issueId)))} onClear={() => setSelectedIssueIds(new Set())} onApply={(action) => void applyBulkAction(action)} /> : null}
       <QueueFilterChips state={searchState} items={allItems} onChange={(next) => updateSearch(next, true)} />
       <QueueList
         organizationSlug={organizationSlug}

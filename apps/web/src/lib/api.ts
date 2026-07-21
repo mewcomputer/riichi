@@ -840,6 +840,7 @@ export function updateIssue(
     spec_complete?: boolean;
     rank?: number;
     labels?: string[];
+    assignee_account_id?: string | null;
   },
 ) {
   return sendJsonWithHeaders<IssueRecord>(
