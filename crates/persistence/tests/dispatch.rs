@@ -120,6 +120,14 @@ async fn onboarding_claim_has_one_winner_per_project() {
         database.claim_onboarding_sample(project_id).await,
         Err(Error::Contended)
     ));
+    sqlx::query(
+        "UPDATE onboarding_sample_claims SET expires_at = now() - interval '1 minute' WHERE project_id = $1",
+    )
+    .bind(project_id)
+    .execute(database.pool())
+    .await
+    .unwrap();
+    assert!(database.claim_onboarding_sample(project_id).await.unwrap());
 }
 
 #[tokio::test]

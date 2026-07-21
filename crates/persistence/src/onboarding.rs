@@ -23,7 +23,9 @@ impl super::Database {
         let claimed = sqlx::query_scalar::<_, Uuid>(
             "INSERT INTO onboarding_sample_claims (project_id)
              VALUES ($1)
-             ON CONFLICT (project_id) DO NOTHING
+             ON CONFLICT (project_id) DO UPDATE
+             SET created_at = now(), expires_at = now() + interval '15 minutes'
+             WHERE onboarding_sample_claims.expires_at <= now()
              RETURNING project_id",
         )
         .bind(project_id)
