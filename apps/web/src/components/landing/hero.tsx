@@ -46,19 +46,6 @@ export function Hero() {
               </a>
             </div>
           </Reveal>
-
-          {/*<Reveal as="div" delay={180} y={12} className="hidden lg:block">
-            <a
-              href="#pricing"
-              className="inline-flex items-center gap-2 rounded-full border border-border bg-muted/40 px-4 py-2 text-[13px] text-muted-foreground transition-colors hover:bg-muted"
-            >
-              <span className="rounded bg-primary/15 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-primary">
-                Plan
-              </span>
-              <span>Single workspace · $16</span>
-              <span aria-hidden>→</span>
-            </a>
-          </Reveal>*/}
         </div>
 
         <Reveal as="div" delay={260} className="mt-16 md:mt-24" y={24} blur={8}>
