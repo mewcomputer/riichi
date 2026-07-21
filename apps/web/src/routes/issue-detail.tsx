@@ -76,6 +76,7 @@ function IssueEditor({
   canApprove,
   canComment,
   metadataCollection,
+  accountId,
 }: {
   issue: IssueRecord;
   projectId: string;
@@ -85,6 +86,7 @@ function IssueEditor({
   canApprove: boolean;
   canComment: boolean;
   metadataCollection: IssueMetadataCollection | null;
+  accountId?: string;
 }) {
   const queryClient = useQueryClient();
   const descriptionDocumentQuery = useQuery({
@@ -117,6 +119,7 @@ function IssueEditor({
   const [subissueDialogOpen, setSubissueDialogOpen] = useState(false);
   const [recoveryFeedback, setRecoveryFeedback] = useState<ActionFeedback | null>(null);
   const [approvalFeedback, setApprovalFeedback] = useState<ActionFeedback | null>(null);
+  const [propertyFeedback, setPropertyFeedback] = useState<ActionFeedback | null>(null);
   const [relativeTimeNow, setRelativeTimeNow] = useState(() => new Date());
   const descriptionPersistence = useRef<LoroDocumentPersistence | null>(null);
   const initializedDescriptionId = useRef<string | null>(null);
@@ -205,7 +208,7 @@ function IssueEditor({
   }, []);
   const issueMutationChain = useRef(Promise.resolve());
   const mutation = useMutation({
-    mutationFn: (input: { title?: string; status?: IssueRecord["status"]; importance?: IssueRecord["importance"]; spec_complete?: boolean }) => {
+    mutationFn: (input: { title?: string; status?: IssueRecord["status"]; importance?: IssueRecord["importance"]; spec_complete?: boolean; assignee_account_id?: string }) => {
       const request = issueMutationChain.current.then(async () => {
         return updateIssueMetadata(metadataCollection, projectId, issue.id, input);
       });
@@ -213,6 +216,7 @@ function IssueEditor({
       return request;
     },
     onSuccess: (updated, input) => {
+      if (input.assignee_account_id) setPropertyFeedback({ state: "confirmed", message: "Assigned to you. Server state is confirmed." });
       setSyncConflict(null);
       if (updated) {
         setImportance(updated.importance);
@@ -236,6 +240,7 @@ function IssueEditor({
       void queryClient.invalidateQueries({ queryKey: ["project", projectId, "queue"] });
     },
     onError: (error, input) => {
+      if (input.assignee_account_id) setPropertyFeedback({ state: "rejected", message: error instanceof Error ? error.message : "Assignment was rejected." });
       const current = queryClient.getQueryData<IssueRecord>(["issue", projectId, issue.id]) ?? issue;
       if (input.importance !== undefined) setImportance(current.importance);
       if (input.spec_complete !== undefined) setSpecComplete(current.spec_complete);
@@ -607,7 +612,9 @@ function IssueEditor({
         <div className="grid gap-2.5">
           <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Team</span><span className="font-mono">{issue.display_key.split("-")[0]}</span></div>
           <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Project</span><span className="truncate">{issue.projects.find((project) => project.project_id === projectId)?.project_name ?? "Unassigned"}</span></div>
+          <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Assignee</span><div className="flex items-center gap-2"><span className="font-mono text-xs">{issue.assignee_account_id?.slice(0, 8) ?? "Unassigned"}</span>{accountId && issue.assignee_account_id !== accountId ? <Button size="sm" variant="outline" className="h-8" onClick={() => { setPropertyFeedback({ state: "pending", message: "Assigning to you…" }); mutation.mutate({ assignee_account_id: accountId }); }} disabled={mutation.isPending}>Assign to me</Button> : null}</div></div>
           <div className="flex items-start justify-between gap-3"><span className="pt-0.5 text-muted-foreground">Labels</span>{issue.labels.length > 0 ? <div className="flex flex-wrap justify-end gap-1">{issue.labels.map((label) => <Badge key={label} variant="secondary">{label}</Badge>)}</div> : <span className="text-muted-foreground/60">None</span>}</div>
+          {propertyFeedback ? <p role={propertyFeedback.state === "rejected" ? "alert" : "status"} className={propertyFeedback.state === "rejected" ? "text-xs text-destructive" : propertyFeedback.state === "pending" ? "text-xs text-muted-foreground" : "text-xs text-emerald-400"}>{propertyFeedback.message}</p> : null}
         </div>
       </section>
         </aside>
@@ -658,7 +665,7 @@ export function IssueDetailPage() {
     }} userName={meQuery.data?.display_name ?? "Alex Morgan"} />}>
       {issueQuery.isPending ? <div className="grid flex-1 place-items-center"><LoaderCircle className="size-5 animate-spin text-muted-foreground" /></div> : null}
       {error ? <div className="p-8 text-sm text-destructive">{error instanceof ApiError && error.status === 401 ? <a href="/auth/login" className="underline">Sign in</a> : error.message}</div> : null}
-      {visibleIssue && issueProjectId && organization ? <IssueEditor issue={visibleIssue} projectId={issueProjectId} organizationSlug={organizationSlug} organizationId={organization.id} teamKey={teamKey} canApprove={canApprove} canComment={canComment} metadataCollection={metadataCollection} /> : null}
+      {visibleIssue && issueProjectId && organization ? <IssueEditor issue={visibleIssue} projectId={issueProjectId} organizationSlug={organizationSlug} organizationId={organization.id} teamKey={teamKey} canApprove={canApprove} canComment={canComment} metadataCollection={metadataCollection} accountId={meQuery.data?.account_id} /> : null}
     </ProjectShell>
   );
 }
