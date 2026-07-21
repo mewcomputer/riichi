@@ -327,6 +327,64 @@ async fn configured_api_supports_oidc_cookie_project_and_invite_round_trip() {
     .unwrap();
     let project_id = project_body["project_id"].as_str().unwrap();
 
+    let mut onboarding = request(
+        Method::POST,
+        &format!("/api/v1/projects/{project_id}/onboarding-sample"),
+        "",
+    );
+    onboarding
+        .headers_mut()
+        .insert(header::COOKIE, first_cookie.clone());
+    let onboarding_response = app.clone().oneshot(onboarding).await.unwrap();
+    assert_eq!(onboarding_response.status(), StatusCode::OK);
+    let onboarding_body: Value = serde_json::from_slice(
+        &onboarding_response
+            .into_body()
+            .collect()
+            .await
+            .unwrap()
+            .to_bytes(),
+    )
+    .unwrap();
+    for field in [
+        "role_id",
+        "session_id",
+        "triage_issue_id",
+        "agent_issue_id",
+        "recovery_issue_id",
+        "approval_id",
+        "recovery_checklist_id",
+    ] {
+        assert!(onboarding_body[field].as_str().is_some(), "missing {field}");
+    }
+    let onboarding_count: i64 =
+        sqlx::query_scalar("SELECT count(*) FROM onboarding_samples WHERE project_id = $1")
+            .bind(Uuid::parse_str(project_id).unwrap())
+            .fetch_one(database.pool())
+            .await
+            .unwrap();
+    assert_eq!(onboarding_count, 1);
+    let mut repeat_onboarding = request(
+        Method::POST,
+        &format!("/api/v1/projects/{project_id}/onboarding-sample"),
+        "",
+    );
+    repeat_onboarding
+        .headers_mut()
+        .insert(header::COOKIE, first_cookie.clone());
+    let repeat_response = app.clone().oneshot(repeat_onboarding).await.unwrap();
+    assert_eq!(repeat_response.status(), StatusCode::OK);
+    let repeat_body: Value = serde_json::from_slice(
+        &repeat_response
+            .into_body()
+            .collect()
+            .await
+            .unwrap()
+            .to_bytes(),
+    )
+    .unwrap();
+    assert_eq!(repeat_body, onboarding_body);
+
     let redrive_message_id = Uuid::new_v4();
     sqlx::query(
         "INSERT INTO outbox_messages (id, project_id, message_type, payload,
