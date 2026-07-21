@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Notification } from "@/lib/api";
-import { filterNotifications, notificationAction, notificationSummary, notificationTitle } from "./inbox";
+import { filterNotifications, notificationAction, notificationStateLabel, notificationSummary, notificationTitle } from "./inbox";
 
 const notification = (overrides: Partial<Notification> = {}): Notification => ({
   id: "notification-1",
@@ -34,5 +34,10 @@ describe("inbox helpers", () => {
     expect(notificationAction(notification({ kind: "approval" }))).toBe("Review approval");
     expect(notificationAction(notification({ kind: "takeover" }))).toBe("Open issue");
     expect(notificationAction(notification({ issue_id: null }))).toBeNull();
+  });
+
+  it("uses the server-authoritative approval lifecycle state when present", () => {
+    expect(notificationStateLabel(notification({ kind: "approval", approval_state: "superseded" }))).toBe("Superseded");
+    expect(notificationStateLabel(notification({ kind: "comment" }))).toBeNull();
   });
 });

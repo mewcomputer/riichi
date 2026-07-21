@@ -14,7 +14,7 @@ import { useActiveProject } from "@/hooks/use-active-project";
 import { useAppLogout } from "@/hooks/use-app-logout";
 import { useNavigation } from "@/hooks/use-navigation";
 import { organizationSlug as toOrganizationSlug } from "@/lib/organization-slug";
-import { filterNotifications, notificationAction, notificationSummary, notificationTitle } from "@/data/inbox";
+import { filterNotifications, notificationAction, notificationStateLabel, notificationSummary, notificationTitle } from "@/data/inbox";
 
 export function InboxPage() {
   const { organizationSlug } = useParams({ from: "/$organizationSlug/inbox" });
@@ -32,7 +32,11 @@ export function InboxPage() {
   const liveQuery = useLiveQuery(() => collection, [collection]);
   const inboxQuery = useQuery({ queryKey: ["inbox"], queryFn: () => getInbox({ limit: 100 }) });
   const replicatedNotifications = liveQuery.data as Notification[] | undefined;
-  const notifications: Notification[] = replicatedNotifications ?? (inboxQuery.data?.notifications ?? []).map((notification) => ({
+  const serverNotifications = inboxQuery.data?.notifications ?? [];
+  const serverById = new Map(serverNotifications.map((notification) => [notification.id, notification]));
+  const notifications: Notification[] = replicatedNotifications
+    ? replicatedNotifications.map((notification) => ({ ...notification, approval_state: serverById.get(notification.id)?.approval_state ?? notification.approval_state }))
+    : serverNotifications.map((notification) => ({
     ...notification,
     recipient_account_id: notification.recipient_account_id ?? "",
     project_id: notification.project_id ?? null,
@@ -121,7 +125,8 @@ export function InboxPage() {
           {visibleNotifications.map((notification) => {
             const isRead = notification.read_at !== null || readConfirmedIds.has(notification.id);
             const action = notificationAction(notification);
-            const issueLink = notification.issue_id ? <Link to="/issues/$issueId" params={{ issueId: notification.issue_id }} className="group block min-w-0 flex-1 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"><p className="font-medium group-hover:underline">{notificationTitle(notification.kind)}</p><p className="truncate text-xs text-muted-foreground">{notificationSummary(notification)}</p></Link> : <div className="min-w-0 flex-1"><p className="font-medium">{notificationTitle(notification.kind)}</p><p className="truncate text-xs text-muted-foreground">{notificationSummary(notification)}</p></div>;
+            const stateLabel = notificationStateLabel(notification);
+            const issueLink = notification.issue_id ? <Link to="/issues/$issueId" params={{ issueId: notification.issue_id }} className="group block min-w-0 flex-1 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"><p className="font-medium group-hover:underline">{notificationTitle(notification.kind)}{stateLabel ? <span className="ml-2 rounded border border-border/70 px-1.5 py-0.5 text-[10px] font-normal text-muted-foreground">{stateLabel}</span> : null}</p><p className="truncate text-xs text-muted-foreground">{notificationSummary(notification)}</p></Link> : <div className="min-w-0 flex-1"><p className="font-medium">{notificationTitle(notification.kind)}{stateLabel ? <span className="ml-2 rounded border border-border/70 px-1.5 py-0.5 text-[10px] font-normal text-muted-foreground">{stateLabel}</span> : null}</p><p className="truncate text-xs text-muted-foreground">{notificationSummary(notification)}</p></div>;
             return <article key={notification.id} className={`flex flex-col gap-3 rounded-md border border-border/60 px-3 py-3 text-sm sm:flex-row sm:items-center ${isRead ? "bg-background" : "bg-muted/15"}`}>
               <span className={`size-2 shrink-0 rounded-full ${isRead ? "bg-muted" : "bg-primary"}`} />
               {issueLink}

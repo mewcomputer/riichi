@@ -8,12 +8,14 @@ impl Database {
         limit: i64,
     ) -> Result<Vec<models::NotificationRecord>, Error> {
         Ok(sqlx::query_as::<_, models::NotificationRecord>(
-            "SELECT id, recipient_account_id, kind, project_id, issue_id, actor_id,
-                    payload, created_at, read_at
-             FROM notifications
-             WHERE recipient_account_id = $1
-               AND ($2 = false OR read_at IS NULL)
-             ORDER BY created_at DESC, id DESC
+            "SELECT n.id, n.recipient_account_id, n.kind, n.project_id, n.issue_id, n.actor_id,
+                    n.payload, a.state AS approval_state, n.created_at, n.read_at
+             FROM notifications n
+             LEFT JOIN approval_requests a
+               ON a.id::text = n.payload->>'approval_id'
+             WHERE n.recipient_account_id = $1
+               AND ($2 = false OR n.read_at IS NULL)
+             ORDER BY n.created_at DESC, n.id DESC
              LIMIT $3",
         )
         .bind(account_id)

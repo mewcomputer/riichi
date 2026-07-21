@@ -247,6 +247,7 @@ pub struct NotificationRecord {
     pub issue_id: Option<Uuid>,
     pub actor_id: Option<Uuid>,
     pub payload: serde_json::Value,
+    pub approval_state: Option<String>,
     pub created_at: DateTime<Utc>,
     pub read_at: Option<DateTime<Utc>>,
 }

@@ -198,6 +198,7 @@ export type Notification = {
   issue_id: string | null;
   actor_id: string | null;
   payload: Record<string, unknown>;
+  approval_state?: "pending" | "approved" | "rejected" | "superseded" | "expired" | null;
   created_at: string;
   read_at: string | null;
 };

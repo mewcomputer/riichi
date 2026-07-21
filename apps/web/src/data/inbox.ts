@@ -33,3 +33,13 @@ export function notificationAction(notification: Notification) {
   if (notification.issue_id) return "Open issue";
   return null;
 }
+
+export function notificationApprovalState(notification: Notification) {
+  if (notification.kind !== "approval") return null;
+  return notification.approval_state ?? null;
+}
+
+export function notificationStateLabel(notification: Notification) {
+  const state = notificationApprovalState(notification);
+  return state ? state[0].toUpperCase() + state.slice(1) : null;
+}

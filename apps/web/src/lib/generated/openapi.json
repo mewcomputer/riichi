@@ -405,6 +405,20 @@
               "null"
             ]
           },
+          "approval_state": {
+            "enum": [
+              "pending",
+              "approved",
+              "rejected",
+              "superseded",
+              "expired",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "created_at": {
             "format": "date-time",
             "type": "string"

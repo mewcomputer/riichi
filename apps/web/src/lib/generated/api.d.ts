@@ -1318,6 +1318,8 @@ export interface components {
         Notification: {
             /** Format: uuid */
             actor_id?: string | null;
+            /** @enum {string|null} */
+            approval_state?: "pending" | "approved" | "rejected" | "superseded" | "expired" | null;
             /** Format: date-time */
             created_at: string;
             /** Format: uuid */
