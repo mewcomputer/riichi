@@ -5,8 +5,8 @@ import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMe
 import { activeQueueFilterChips, type QueueSearchState } from "@/data/queue-search";
 import type { QueueItem } from "@/data/queue";
 import { issueImportanceLabel, type IssueImportance } from "@/components/issues/issue-importance-menu";
-import { issueStatuses } from "@/components/issues/issue-status-menu";
-import type { QueueAdvancedFilter } from "./types";
+import { issueStatuses, type IssueStatus } from "@/components/issues/issue-status-menu";
+import type { QueueAdvancedFilter, QueueBulkAction } from "./types";
 
 export function QueueFilterMenu({ items, advancedFilter, onAdvancedFilterChange }: { items: QueueItem[]; advancedFilter: QueueAdvancedFilter; onAdvancedFilterChange: (filter: QueueAdvancedFilter) => void }) {
   const teams = [...new Map(items.map((item) => [item.teamKey, item.teamName])).entries()];
@@ -19,6 +19,10 @@ export function QueueFilterMenu({ items, advancedFilter, onAdvancedFilterChange 
 
 export function QueueDisplayMenu({ showDetails, onShowDetailsChange }: { showDetails: boolean; onShowDetailsChange: (show: boolean) => void }) {
   return <DropdownMenu><DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" className="text-muted-foreground" aria-label="Display options" />}><SlidersHorizontal /></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-48"><DropdownMenuLabel>Display options</DropdownMenuLabel><DropdownMenuSeparator /><DropdownMenuCheckboxItem checked={showDetails} onCheckedChange={(checked) => onShowDetailsChange(checked === true)}>Show status details</DropdownMenuCheckboxItem><DropdownMenuCheckboxItem checked={false} disabled>Show estimates</DropdownMenuCheckboxItem></DropdownMenuContent></DropdownMenu>;
+}
+
+export function QueueBulkActionBar({ count, onSelectAll, onClear, onApply }: { count: number; onSelectAll: () => void; onClear: () => void; onApply: (action: QueueBulkAction) => void }) {
+  return <div className="flex min-h-10 flex-wrap items-center gap-2 border-b border-border/50 bg-muted/20 px-4 py-1.5" role="toolbar" aria-label="Bulk issue actions"><span className="text-xs text-muted-foreground">{count} selected</span><Button variant="ghost" size="sm" onClick={onSelectAll}>Select visible</Button><DropdownMenu><DropdownMenuTrigger render={<Button variant="outline" size="sm">Change…</Button>} /><DropdownMenuContent align="start" className="w-48"><DropdownMenuSub><DropdownMenuSubTrigger>Status</DropdownMenuSubTrigger><DropdownMenuSubContent className="w-44"><DropdownMenuRadioGroup onValueChange={(value) => onApply({ kind: "status", value: value as IssueStatus })}>{issueStatuses.map((status) => <DropdownMenuRadioItem key={status.value} value={status.value}>{status.label}</DropdownMenuRadioItem>)}</DropdownMenuRadioGroup></DropdownMenuSubContent></DropdownMenuSub><DropdownMenuSub><DropdownMenuSubTrigger>Priority</DropdownMenuSubTrigger><DropdownMenuSubContent className="w-44"><DropdownMenuRadioGroup onValueChange={(value) => onApply({ kind: "importance", value: value as IssueImportance })}>{(["none", "low", "medium", "high", "urgent"] as IssueImportance[]).map((importance) => <DropdownMenuRadioItem key={importance} value={importance}>{issueImportanceLabel(importance)}</DropdownMenuRadioItem>)}</DropdownMenuRadioGroup></DropdownMenuSubContent></DropdownMenuSub></DropdownMenuContent></DropdownMenu><Button variant="ghost" size="sm" onClick={onClear}>Clear</Button></div>;
 }
 
 export function QueueFilterChips({ state, items, onChange }: { state: QueueSearchState; items: QueueItem[]; onChange: (next: Partial<QueueSearchState>) => void }) {

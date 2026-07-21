@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
 import { IssueStatusMenu, type IssueStatus } from "@/components/issues/issue-status-menu";
@@ -18,9 +19,10 @@ function StatusMark({ status }: { status: IssueStatus }) {
   return <Circle className="size-4 text-muted-foreground" />;
 }
 
-function QueueRow({ item, organizationSlug, selected, feedback, showDetails, onOpenIssue, onStatusChange, onImportanceChange }: { item: QueueItem; organizationSlug: string; selected: boolean; feedback?: QueueMutationFeedback; showDetails: boolean; onOpenIssue: (item: QueueItem) => void; onStatusChange: (item: QueueItem, status: IssueStatus) => void; onImportanceChange: (item: QueueItem, importance: IssueImportance) => void }) {
+function QueueRow({ item, organizationSlug, selected, selectedForBulk, feedback, showDetails, onOpenIssue, onToggleSelection, onStatusChange, onImportanceChange }: { item: QueueItem; organizationSlug: string; selected: boolean; selectedForBulk: boolean; feedback?: QueueMutationFeedback; showDetails: boolean; onOpenIssue: (item: QueueItem) => void; onToggleSelection: (item: QueueItem, checked: boolean) => void; onStatusChange: (item: QueueItem, status: IssueStatus) => void; onImportanceChange: (item: QueueItem, importance: IssueImportance) => void }) {
   return (
-    <div data-queue-item-id={item.issueId} className={`grid min-h-11 grid-cols-[24px_24px_minmax(0,1fr)_auto] items-center gap-2 border-b border-border/40 px-3 text-xs transition-colors hover:bg-muted/35 sm:min-h-10 sm:grid-cols-[24px_64px_24px_minmax(220px,1fr)_auto] sm:px-4 ${selected ? "bg-muted/45 ring-1 ring-inset ring-ring/60" : ""}`}>
+    <div data-queue-item-id={item.issueId} className={`grid min-h-11 grid-cols-[24px_24px_24px_minmax(0,1fr)_auto] items-center gap-2 border-b border-border/40 px-3 text-xs transition-colors hover:bg-muted/35 sm:min-h-10 sm:grid-cols-[24px_24px_64px_24px_minmax(220px,1fr)_auto] sm:px-4 ${selected ? "bg-muted/45 ring-1 ring-inset ring-ring/60" : ""}`}>
+      <Checkbox checked={selectedForBulk} onCheckedChange={(checked) => onToggleSelection(item, checked === true)} aria-label={`Select ${item.id}`} />
       <IssueImportanceMenu importance={item.importance} compact className="size-11 sm:size-7" onChange={(importance) => onImportanceChange(item, importance)} />
       <span className="hidden truncate font-mono text-[11px] text-muted-foreground sm:block">{item.id}</span>
         <IssueStatusMenu
@@ -64,6 +66,8 @@ export function QueueList({
   onOpenIssue,
   onStatusChange,
   onImportanceChange,
+  selectedIssueIds = new Set(),
+  onToggleSelection,
 }: {
   organizationSlug: string;
   items: QueueItem[];
@@ -77,6 +81,8 @@ export function QueueList({
   onOpenIssue: (item: QueueItem) => void;
   onStatusChange: (item: QueueItem, status: IssueStatus) => void;
   onImportanceChange: (item: QueueItem, importance: IssueImportance) => void;
+  selectedIssueIds?: Set<string>;
+  onToggleSelection: (item: QueueItem, checked: boolean) => void;
 }) {
   return (
     <div className="min-h-0 flex-1 overflow-auto">
@@ -109,7 +115,7 @@ export function QueueList({
                 <span className="text-muted-foreground">{group.items.length}</span>
               </div>
               {group.items.map((item) => (
-                <QueueRow key={`${item.projectId}-${item.issueId}`} item={item} organizationSlug={organizationSlug} selected={item.issueId === selectedIssueId} feedback={feedbackByIssueId[item.issueId]} showDetails={showDetails} onOpenIssue={onOpenIssue} onStatusChange={onStatusChange} onImportanceChange={onImportanceChange} />
+                <QueueRow key={`${item.projectId}-${item.issueId}`} item={item} organizationSlug={organizationSlug} selected={item.issueId === selectedIssueId} selectedForBulk={selectedIssueIds.has(item.issueId)} feedback={feedbackByIssueId[item.issueId]} showDetails={showDetails} onOpenIssue={onOpenIssue} onToggleSelection={onToggleSelection} onStatusChange={onStatusChange} onImportanceChange={onImportanceChange} />
               ))}
             </section>
           ))

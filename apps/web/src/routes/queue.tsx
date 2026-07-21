@@ -16,11 +16,11 @@ import { useNavigation } from "../hooks/use-navigation";
 import { createQueueCommandGroups } from "../components/queue/queue-command-groups";
 import { QueueList } from "../components/queue/queue-list";
 import { QueueToolbar } from "../components/queue/queue-toolbar";
-import { QueueDisplayMenu, QueueFilterChips, QueueFilterMenu } from "../components/queue/queue-controls";
+import { QueueBulkActionBar, QueueDisplayMenu, QueueFilterChips, QueueFilterMenu } from "../components/queue/queue-controls";
 import { ProjectHeader, type ProjectViewTab } from "../components/project/project-header";
 import { ProjectShell } from "../components/project/project-shell";
 import { ProjectSidebar } from "../components/project/project-sidebar";
-import type { QueueFilter, QueueMutationFeedback, QueueView } from "../components/queue/types";
+import type { QueueBulkAction, QueueFilter, QueueMutationFeedback, QueueView } from "../components/queue/types";
 import { moveQueueSelection, parseQueueSearch, serializeQueueSearch, type QueueSearchState } from "../data/queue-search";
 import { LazyIssueCreateDialog } from "../components/issues/lazy-issue-create-dialog";
 import type { IssueStatus } from "../components/issues/issue-status-menu";
@@ -53,6 +53,7 @@ export function QueuePage({ initialFilter = "all", initialView = "all", teamId, 
   }), [initialFilter, initialView, parsedSearch]);
   const { filter, view, query, showDetails, advancedFilter } = searchState;
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
+  const [selectedIssueIds, setSelectedIssueIds] = useState<Set<string>>(() => new Set());
   const [feedbackByIssueId, setFeedbackByIssueId] = useState<Record<string, QueueMutationFeedback>>({});
   const [createOpen, setCreateOpen] = useState(false);
   const navigate = useNavigate();
@@ -128,6 +129,18 @@ export function QueuePage({ initialFilter = "all", initialView = "all", teamId, 
       setFeedbackByIssueId((current) => ({ ...current, [item.issueId]: { state: "rejected", message: error instanceof Error ? error.message : "Update failed" } }));
     },
   });
+  const applyBulkAction = async (action: QueueBulkAction) => {
+    const selected = allItems.filter((item) => selectedIssueIds.has(item.issueId));
+    await Promise.all(selected.map(async (item) => {
+      try {
+        if (action.kind === "status") await statusMutation.mutateAsync({ item, status: action.value });
+        else await importanceMutation.mutateAsync({ item, importance: action.value });
+      } catch {
+        // The individual mutation owns the rejected acknowledgement for this row.
+      }
+    }));
+    setSelectedIssueIds(new Set());
+  };
   const allItems = useMemo(
     () => {
       const metadataById = new Map(
@@ -204,6 +217,14 @@ export function QueuePage({ initialFilter = "all", initialView = "all", teamId, 
       setSelectedIssueId(visibleItems[0]?.issueId ?? null);
     }
   }, [selectedIssueId, visibleItems]);
+
+  useEffect(() => {
+    setSelectedIssueIds((current) => {
+      const visibleIds = new Set(visibleItems.map((item) => item.issueId));
+      const next = new Set([...current].filter((issueId) => visibleIds.has(issueId)));
+      return next.size === current.size ? current : next;
+    });
+  }, [visibleItems]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -301,12 +322,14 @@ export function QueuePage({ initialFilter = "all", initialView = "all", teamId, 
         onRefresh={() => void queueQuery.refetch()}
         onCreate={() => setCreateOpen(true)}
       />
+      {selectedIssueIds.size > 0 ? <QueueBulkActionBar count={selectedIssueIds.size} onSelectAll={() => setSelectedIssueIds(new Set(visibleItems.map((item) => item.issueId)))} onClear={() => setSelectedIssueIds(new Set())} onApply={(action) => void applyBulkAction(action)} /> : null}
       <QueueFilterChips state={searchState} items={allItems} onChange={(next) => updateSearch(next, true)} />
       <QueueList
         organizationSlug={organizationSlug}
         items={visibleItems}
         selectedIssueId={selectedIssueId}
         feedbackByIssueId={feedbackByIssueId}
+        selectedIssueIds={selectedIssueIds}
         showDetails={showDetails}
         loading={loading}
         error={displayError instanceof Error ? displayError : undefined}
@@ -319,6 +342,7 @@ export function QueuePage({ initialFilter = "all", initialView = "all", teamId, 
         }}
         onStatusChange={(item, status) => statusMutation.mutate({ item, status })}
         onImportanceChange={(item, importance) => importanceMutation.mutate({ item, importance })}
+        onToggleSelection={(item, checked) => setSelectedIssueIds((current) => { const next = new Set(current); if (checked) next.add(item.issueId); else next.delete(item.issueId); return next; })}
       />
       <LazyIssueCreateDialog
         open={createOpen}

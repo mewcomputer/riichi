@@ -1,5 +1,7 @@
 import type { HumanQueueIssue } from "@/lib/api";
 import type { QueueItem, QueueState } from "@/data/queue";
+import type { IssueImportance } from "@/components/issues/issue-importance-menu";
+import type { IssueStatus } from "@/components/issues/issue-status-menu";
 
 export type QueueFilter = "all" | QueueState;
 export type QueueView = "all" | "active" | "backlog";
@@ -18,6 +20,10 @@ export type QueueMutationFeedback = {
   state: "pending" | "confirmed" | "rejected";
   message?: string;
 };
+
+export type QueueBulkAction =
+  | { kind: "status"; value: IssueStatus }
+  | { kind: "importance"; value: IssueImportance };
 
 export const stateCopy: Record<QueueState, string> = {
   ready: "Ready",
