@@ -11,8 +11,13 @@ impl Database {
             "SELECT n.id, n.recipient_account_id, n.kind, n.project_id, n.issue_id, n.actor_id,
                     n.payload, a.state AS approval_state, n.created_at, n.read_at
              FROM notifications n
+             LEFT JOIN project_memberships m
+               ON m.project_id = n.project_id
+              AND m.account_id = $1
+              AND m.revoked_at IS NULL
              LEFT JOIN approval_requests a
-               ON a.id::text = n.payload->>'approval_id'
+               ON m.account_id IS NOT NULL
+              AND a.id::text = n.payload->>'approval_id'
              WHERE n.recipient_account_id = $1
                AND ($2 = false OR n.read_at IS NULL)
              ORDER BY n.created_at DESC, n.id DESC
