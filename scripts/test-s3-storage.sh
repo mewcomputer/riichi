@@ -25,6 +25,9 @@ cleanup() {
     if [[ "$managed" != true ]]; then
         docker rm -f "$container" >/dev/null 2>&1 || true
     fi
+    # mc creates root-owned subdirs (certs/, share/) inside the config mount;
+    # clean them via a root container so the host rm doesn't hit permission errors
+    docker run --rm -v "$mc_config_dir:/clean" alpine rm -rf /clean/* 2>/dev/null || true
     rm -rf "$mc_config_dir"
     rm -rf "$backup_dir"
 }

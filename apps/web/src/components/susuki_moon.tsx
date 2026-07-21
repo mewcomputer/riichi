@@ -1,9 +1,13 @@
+import { useId } from "react";
+
 type SusukiMoonSvgProps = React.SVGProps<SVGSVGElement>;
 
 export default function SusukiMoonSvg({
   width = "100%",
   ...props
 }: SusukiMoonSvgProps) {
+  const reactId = useId();
+  const clipId = `susuki-moon-clip-${reactId.replace(/[^a-zA-Z0-9_-]/g, "")}`;
   return (
     <svg
       width={width}
@@ -14,11 +18,11 @@ export default function SusukiMoonSvg({
       {...props}
     >
       <defs>
-        <clipPath id="card2">
+        <clipPath id={clipId}>
           <rect x="140" y="40" width="400" height="400" rx="48" />
         </clipPath>
       </defs>
-      <g clipPath="url(#card2)">
+      <g clipPath={`url(#${clipId})`}>
         <rect
           x="140"
           y="40"

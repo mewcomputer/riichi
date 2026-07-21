@@ -3,10 +3,10 @@ import { createRootRoute, createRoute, createRouter, lazyRouteComponent } from '
 import { RootRoute } from './routes/__root'
 
 const rootRoute = createRootRoute({ component: RootRoute })
-const legacyRootRoute = createRoute({
+const landingRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
-  component: lazyRouteComponent(() => import('./routes/queue'), 'LegacyWorkspaceRedirect'),
+  component: lazyRouteComponent(() => import('./routes/landing'), 'LandingPage'),
 })
 const queueRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -94,7 +94,7 @@ const organizationDocumentsRoute = createRoute({
   component: lazyRouteComponent(() => import('./routes/organization-documents'), 'OrganizationDocumentsPage'),
 })
 
-const routeTree = rootRoute.addChildren([legacyRootRoute, queueRoute, triageRoute, teamResourceRoute, projectResourceRoute, teamSettingsRoute, teamIssuesRoute, onboardingRoute, organizationDocumentsRoute, documentRoute, issueDetailRoute, legacyIssueDetailRoute, agentsRoute, integrationsRoute, settingsRoute, loginRoute, approvalsRoute, inboxRoute])
+const routeTree = rootRoute.addChildren([landingRoute, queueRoute, triageRoute, teamResourceRoute, projectResourceRoute, teamSettingsRoute, teamIssuesRoute, onboardingRoute, organizationDocumentsRoute, documentRoute, issueDetailRoute, legacyIssueDetailRoute, agentsRoute, integrationsRoute, settingsRoute, loginRoute, approvalsRoute, inboxRoute])
 
 export const router = createRouter({ routeTree })
 
