@@ -1,7 +1,7 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useLiveQuery } from "@tanstack/react-db";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useParams } from "@tanstack/react-router";
+import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { Bell, Check } from "lucide-react";
 
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
@@ -14,15 +14,19 @@ import { useActiveProject } from "@/hooks/use-active-project";
 import { useAppLogout } from "@/hooks/use-app-logout";
 import { useNavigation } from "@/hooks/use-navigation";
 import { organizationSlug as toOrganizationSlug } from "@/lib/organization-slug";
+import { filterNotifications, notificationSummary, notificationTitle } from "@/data/inbox";
 
 export function InboxPage() {
   const { organizationSlug } = useParams({ from: "/$organizationSlug/inbox" });
+  const rawSearch = useSearch({ strict: false }) as Record<string, unknown>;
+  const projectFilter = typeof rawSearch.project === "string" && rawSearch.project ? rawSearch.project : "all";
   const navigate = useNavigate();
   const appLogout = useAppLogout();
   const queryClient = useQueryClient();
   const meQuery = useQuery({ queryKey: ["auth", "me"], queryFn: getCurrentUser, retry: false });
   const navigationQuery = useNavigation();
   const { activeMembership, projectId, selectProject } = useActiveProject(meQuery.data?.memberships);
+  const [readConfirmedIds, setReadConfirmedIds] = useState<Set<string>>(() => new Set());
   const collection = useMemo(() => createNotificationCollection(), []);
   const liveQuery = useLiveQuery(() => collection, [collection]);
   const inboxQuery = useQuery({ queryKey: ["inbox"], queryFn: () => getInbox({ limit: 100 }) });
@@ -35,10 +39,28 @@ export function InboxPage() {
     actor_id: notification.actor_id ?? null,
     read_at: notification.read_at ?? null,
   }));
-  const unreadCount = notifications.filter((notification) => notification.read_at === null).length;
+  const visibleNotifications = filterNotifications(notifications, projectFilter);
+  const unreadCount = visibleNotifications.filter((notification) => notification.read_at === null && !readConfirmedIds.has(notification.id)).length;
+  const projects = useMemo(
+    () => navigationQuery.data?.organizations.flatMap((organization) => organization.teams.flatMap((team) => team.projects.map((project) => ({ id: project.id, label: `${project.name} · ${team.key}` })))) ?? [],
+    [navigationQuery.data],
+  );
+  const updateProjectFilter = (nextProject: string) => {
+    void navigate({ replace: true, search: () => (nextProject === "all" ? {} : { project: nextProject }) as never });
+  };
+  const [readPendingIds, setReadPendingIds] = useState<Set<string>>(() => new Set());
   const markReadMutation = useMutation({
-    mutationFn: markInboxNotificationRead,
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["inbox"] }),
+    mutationFn: async (notificationId: string) => {
+      setReadPendingIds((current) => new Set(current).add(notificationId));
+      await markInboxNotificationRead(notificationId);
+      return notificationId;
+    },
+    onSuccess: (notificationId) => {
+      setReadPendingIds((current) => { const next = new Set(current); next.delete(notificationId); return next; });
+      setReadConfirmedIds((current) => new Set(current).add(notificationId));
+      void queryClient.invalidateQueries({ queryKey: ["inbox"] });
+    },
+    onError: (_error, notificationId) => setReadPendingIds((current) => { const next = new Set(current); next.delete(notificationId); return next; }),
   });
   const organizationName = navigationQuery.data?.organizations.find(
     (organization) => toOrganizationSlug(organization.name) === organizationSlug,
@@ -63,17 +85,24 @@ export function InboxPage() {
         userName={meQuery.data?.display_name ?? "Alex Morgan"}
       />}
     >
-      <main className="mx-auto w-full max-w-4xl px-8 py-8">
-        <header className="mb-6 flex items-end justify-between gap-4 border-b border-border/60 pb-5">
+      <main className="mx-auto w-full max-w-4xl px-4 py-5 sm:px-6 sm:py-8 lg:px-8">
+        <header className="mb-5 flex flex-col items-stretch gap-4 border-b border-border/60 pb-5 sm:mb-6 sm:flex-row sm:items-end sm:justify-between">
           <div className="grid gap-1">
             <p className="text-xs text-muted-foreground">{organizationName}</p>
             <h1 className="text-xl font-semibold tracking-tight">Inbox</h1>
           </div>
-          <span className="text-xs text-muted-foreground">{unreadCount} unread</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="sr-only" htmlFor="inbox-project-filter">Filter inbox by project</label>
+            <select id="inbox-project-filter" value={projectFilter} onChange={(event) => updateProjectFilter(event.target.value)} className="h-11 min-w-0 max-w-full rounded-md border border-input bg-background px-2 text-xs sm:h-8">
+              <option value="all">All projects</option>
+              {projects.map((project) => <option key={project.id} value={project.id}>{project.label}</option>)}
+            </select>
+            <span className="text-xs text-muted-foreground">{unreadCount} unread</span>
+          </div>
         </header>
         {inboxQuery.isPending && notifications.length === 0 ? <p className="text-sm text-muted-foreground">Loading inbox…</p> : null}
         {inboxQuery.error ? <p className="text-sm text-destructive">{inboxQuery.error.message}</p> : null}
-        {!inboxQuery.isPending && !inboxQuery.error && notifications.length === 0 ? (
+        {!inboxQuery.isPending && !inboxQuery.error && visibleNotifications.length === 0 ? (
           <Empty className="min-h-56 border-0">
             <EmptyHeader>
               <EmptyMedia variant="icon"><Bell /></EmptyMedia>
@@ -81,33 +110,30 @@ export function InboxPage() {
             </EmptyHeader>
           </Empty>
         ) : null}
-        <div className="grid gap-1">
-          {notifications.map((notification) => (
-            <article key={notification.id} className="flex items-center gap-3 rounded-md border border-border/60 px-3 py-3 text-sm">
-              <span className={`size-2 shrink-0 rounded-full ${notification.read_at ? "bg-muted" : "bg-primary"}`} />
-              <div className="min-w-0 flex-1">
-                <p className="font-medium capitalize">{notification.kind.replaceAll("_", " ")}</p>
-                <p className="truncate text-xs text-muted-foreground">
-                  {typeof notification.payload.body === "string" ? notification.payload.body : "You have a new Riichi notification."}
-                </p>
-              </div>
-              <time className="shrink-0 text-[10px] text-muted-foreground" dateTime={notification.created_at}>
+        <div className="grid gap-2">
+          {visibleNotifications.map((notification) => {
+            const isRead = notification.read_at !== null || readConfirmedIds.has(notification.id);
+            const issueLink = notification.issue_id ? <Link to="/issues/$issueId" params={{ issueId: notification.issue_id }} className="group block min-w-0 flex-1 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"><p className="font-medium group-hover:underline">{notificationTitle(notification.kind)}</p><p className="truncate text-xs text-muted-foreground">{notificationSummary(notification)}</p></Link> : <div className="min-w-0 flex-1"><p className="font-medium">{notificationTitle(notification.kind)}</p><p className="truncate text-xs text-muted-foreground">{notificationSummary(notification)}</p></div>;
+            return <article key={notification.id} className={`flex flex-col gap-3 rounded-md border border-border/60 px-3 py-3 text-sm sm:flex-row sm:items-center ${isRead ? "bg-background" : "bg-muted/15"}`}>
+              <span className={`size-2 shrink-0 rounded-full ${isRead ? "bg-muted" : "bg-primary"}`} />
+              {issueLink}
+              <time className="shrink-0 text-[10px] text-muted-foreground sm:text-right" dateTime={notification.created_at}>
                 {new Date(notification.created_at).toLocaleString()}
               </time>
-              {!notification.read_at ? (
+              {!isRead ? (
                 <Button
                   aria-label="Mark notification as read"
                   size="icon"
                   variant="ghost"
-                  className="size-7"
+                  className="size-11 self-end sm:size-8 sm:self-auto"
                   onClick={() => markReadMutation.mutate(notification.id)}
-                  disabled={markReadMutation.isPending}
+                  disabled={readPendingIds.has(notification.id)}
                 >
-                  <Check />
+                  {readPendingIds.has(notification.id) ? <span className="text-xs">…</span> : <Check />}
                 </Button>
               ) : null}
-            </article>
-          ))}
+            </article>;
+          })}
         </div>
       </main>
     </ProjectShell>

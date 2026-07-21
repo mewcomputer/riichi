@@ -52,6 +52,7 @@ const approvalsRoute = createRoute({
 const inboxRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/$organizationSlug/inbox',
+  validateSearch: (search) => search,
   component: lazyRouteComponent(() => import('./routes/inbox'), 'InboxPage'),
 })
 const triageRoute = createRoute({
