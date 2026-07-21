@@ -66,6 +66,7 @@ export function QueueList({
   onOpenIssue,
   onStatusChange,
   onImportanceChange,
+  stale = false,
   selectedIssueIds = new Set(),
   onToggleSelection,
 }: {
@@ -81,12 +82,14 @@ export function QueueList({
   onOpenIssue: (item: QueueItem) => void;
   onStatusChange: (item: QueueItem, status: IssueStatus) => void;
   onImportanceChange: (item: QueueItem, importance: IssueImportance) => void;
+  stale?: boolean;
   selectedIssueIds?: Set<string>;
   onToggleSelection: (item: QueueItem, checked: boolean) => void;
 }) {
   return (
     <div className="min-h-0 flex-1 overflow-auto">
       <div className="min-w-0">
+        {stale ? <div role="status" className="flex items-center justify-between gap-3 border-b border-orange-400/30 bg-orange-400/10 px-4 py-2 text-xs text-orange-200"><span>Showing the last server snapshot. Refresh failed.</span>{onRetry ? <Button variant="ghost" size="sm" className="h-7" onClick={onRetry}>Retry</Button> : null}</div> : null}
         {loading ? (
           <div className="space-y-2 p-4">
             {Array.from({ length: 5 }, (_, index) => (

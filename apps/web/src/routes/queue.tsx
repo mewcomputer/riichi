@@ -307,7 +307,7 @@ export function QueuePage({ initialFilter = "all", initialView = "all", teamId, 
 
   const loading = meQuery.isPending || queueQuery.isPending;
   const error = meQuery.error ?? queueQuery.error;
-  const displayError = error;
+  const displayError = meQuery.error ?? (queueQuery.data ? undefined : queueQuery.error);
   const retry = () => {
     void meQuery.refetch();
     void queueQuery.refetch();
@@ -369,6 +369,7 @@ export function QueuePage({ initialFilter = "all", initialView = "all", teamId, 
         selectedIssueIds={selectedIssueIds}
         showDetails={showDetails}
         loading={loading}
+        stale={Boolean(queueQuery.error && queueQuery.data)}
         error={displayError instanceof Error ? displayError : undefined}
         onRetry={retry}
         authRequired={displayError instanceof ApiError && displayError.status === 401}
