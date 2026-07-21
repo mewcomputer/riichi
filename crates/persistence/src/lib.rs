@@ -11,6 +11,7 @@ mod human;
 mod loro;
 mod models;
 mod notifications;
+mod onboarding;
 mod organization;
 mod outbox;
 mod reports;
@@ -56,6 +57,7 @@ pub use models::{
     RecoveryChecklistRecord as RecoveryChecklist, ReportAction as Action, ReportBatch,
     ReportBatchResult, ReportInput as Report, ReportOperation, SubissueRecord,
 };
+pub use onboarding::OnboardingSampleRecord;
 pub use organization::NavigationRow;
 pub use views::SavedViewRecord;
 

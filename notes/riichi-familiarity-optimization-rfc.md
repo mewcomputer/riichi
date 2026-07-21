@@ -35,7 +35,7 @@ boundary while adding familiar navigation and feedback patterns:
 | Per-item queue and issue mutation acknowledgement | Queue, issue-detail, and approval feedback states with frontend coverage | shipped |
 | Actionable inbox and approval lifecycle state | Server-enriched approval state scoped to current project access | shipped |
 | First-use terminology hints | Dismissible issue-detail hint for lease, fencing token, and approval | shipped |
-| Guided sample workspace with agent claim/report and recovery fixtures | Requires an authoritative agent-session issuance flow that the web surface does not yet expose | deferred |
+| Guided sample workspace with agent claim/report and recovery fixtures | Admin-only onboarding-sample command creates PostgreSQL-backed issues, a role/session, fenced claim/report history, approval, and recovery checklist | shipped |
 
 ## 3. Goals
 

@@ -37,6 +37,7 @@ mod documents;
 mod github;
 mod issues;
 mod navigation;
+mod onboarding;
 mod projects;
 mod views;
 
@@ -48,6 +49,7 @@ use documents::*;
 use github::*;
 use issues::*;
 use navigation::*;
+use onboarding::*;
 use projects::*;
 use views::*;
 
@@ -326,6 +328,10 @@ fn app_with_optional_auth_and_electric_url_and_attachment_store(
             post(create_agent_role),
         )
         .route(
+            "/api/v1/projects/{project_id}/onboarding-sample",
+            post(create_onboarding_sample),
+        )
+        .route(
             "/api/v1/projects/{project_id}/agent-roles/{role_id}/sessions",
             post(create_agent_session),
         )
@@ -501,6 +507,7 @@ pub fn openapi_document_value() -> Value {
             ,"/api/v1/views": {"get": {"operationId": "listSavedViews", "responses": {"200": {"description": "Account-owned saved queue views", "content": {"application/json": {"schema": {"type": "array", "items": {"$ref": "#/components/schemas/SavedView"}}}}}}}, "post": {"operationId": "saveSavedView", "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/SaveViewRequest"}}}}, "responses": {"200": {"description": "Saved queue view", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/SavedView"}}}}}}}
             ,"/api/v1/views/{view_id}": {"delete": {"operationId": "deleteSavedView", "parameters": [{"name": "view_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}], "responses": {"204": {"description": "Saved queue view deleted"}}}}
             ,"/api/v1/projects/{project_id}/agent-roles/{role_id}/sessions": {"post": {"operationId": "createAgentSession", "parameters": [{"name": "project_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}, {"name": "role_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}], "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CreateAgentSessionRequest"}}}}, "responses": {"200": {"description": "One-time agent session credential", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CreateAgentSessionResponse"}}}}}}}
+            ,"/api/v1/projects/{project_id}/onboarding-sample": {"post": {"operationId": "createOnboardingSample", "parameters": [{"name": "project_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}], "responses": {"200": {"description": "Authoritative guided workflow sample", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/OnboardingSample"}}}}}}}
             ,"/api/v1/issues": {"get": {"operationId": "getAllIssues", "responses": {"200": {"description": "Accessible human issues"}}}}
             ,"/api/v1/issues/{issue_id}": {"get": {"operationId": "getGlobalIssue", "parameters": [{"name": "issue_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}], "responses": {"200": {"description": "Issue"}}}}
             ,"/api/v1/teams/{team_id}/issues": {"get": {"operationId": "getTeamIssues", "parameters": [{"name": "team_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}], "responses": {"200": {"description": "Team issues"}}}, "post": {"operationId": "createTeamIssue", "responses": {"200": {"description": "Created issue"}}}}
@@ -539,6 +546,7 @@ pub fn openapi_document_value() -> Value {
             ,"CreateAgentSessionRequest": {"type": "object", "properties": {"lifetime_seconds": {"type": "integer", "minimum": 60, "maximum": 86400}}}
             ,"CreateAgentSessionResponse": {"type": "object", "required": ["session_id", "agent_token", "expires_at"], "properties": {"session_id": {"type": "string", "format": "uuid"}, "agent_token": {"type": "string"}, "expires_at": {"type": "string", "format": "date-time"}}}
             ,"CreateAgentRoleResponse": {"type": "object", "required": ["role_id"], "properties": {"role_id": {"type": "string", "format": "uuid"}}}
+            ,"OnboardingSample": {"type": "object", "required": ["project_id", "role_id", "session_id", "triage_issue_id", "agent_issue_id", "recovery_issue_id", "approval_id", "recovery_checklist_id", "created_at"], "properties": {"project_id": {"type": "string", "format": "uuid"}, "role_id": {"type": "string", "format": "uuid"}, "session_id": {"type": "string", "format": "uuid"}, "triage_issue_id": {"type": "string", "format": "uuid"}, "agent_issue_id": {"type": "string", "format": "uuid"}, "recovery_issue_id": {"type": "string", "format": "uuid"}, "approval_id": {"type": "string", "format": "uuid"}, "recovery_checklist_id": {"type": "string", "format": "uuid"}, "created_at": {"type": "string", "format": "date-time"}}}
             ,"LoroFrontier": {"type": "object", "required": ["peer_id", "counter"], "properties": {"peer_id": {"type": "string"}, "counter": {"type": "integer", "format": "int32"}}}
             ,"ApplyLoroUpdateRequest": {"type": "object", "required": ["update_id", "previous_frontiers", "payload_base64"], "properties": {"schema_version": {"type": ["integer", "null"]}, "update_id": {"type": "string", "format": "uuid"}, "idempotency_key": {"type": ["string", "null"]}, "previous_frontiers": {"type": "array", "items": {"$ref": "#/components/schemas/LoroFrontier"}}, "payload_base64": {"type": "string"}}}
             ,"ApplyLoroUpdateResponse": {"type": "object", "required": ["update_id", "document_id", "source", "previous_frontiers", "resulting_frontiers", "accepted_at", "replayed"], "properties": {"update_id": {"type": "string", "format": "uuid"}, "document_id": {"type": "string", "format": "uuid"}, "source": {"type": "string"}, "previous_frontiers": {"type": "array", "items": {"$ref": "#/components/schemas/LoroFrontier"}}, "resulting_frontiers": {"type": "array", "items": {"$ref": "#/components/schemas/LoroFrontier"}}, "accepted_at": {"type": "string", "format": "date-time"}, "replayed": {"type": "boolean"}}}
@@ -673,6 +681,7 @@ const DOCUMENTED_ROUTE_SURFACE: &[(&str, &str)] = &[
         "post",
     ),
     ("/api/v1/projects/{project_id}/agent-roles", "post"),
+    ("/api/v1/projects/{project_id}/onboarding-sample", "post"),
     (
         "/api/v1/projects/{project_id}/agent-roles/{role_id}/sessions",
         "post",
@@ -1951,6 +1960,10 @@ mod tests {
         assert!(document["paths"]["/api/v1/views"]["post"].is_object());
         assert!(document["paths"]["/api/v1/views/{view_id}"]["delete"].is_object());
         assert!(document["paths"]["/api/v1/projects/{project_id}/agent-roles/{role_id}/sessions"]["post"].is_object());
+        assert!(
+            document["paths"]["/api/v1/projects/{project_id}/onboarding-sample"]["post"]
+                .is_object()
+        );
         assert_eq!(
             document["paths"]["/api/v1/documents/{document_id}/loro-snapshot"]["get"]["responses"]
                 ["200"]["content"]["application/octet-stream"]["schema"]["format"],

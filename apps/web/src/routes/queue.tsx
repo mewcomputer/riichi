@@ -7,7 +7,7 @@ import { Archive, CircleDot, Layers3, UserRound } from "lucide-react";
 
 import { Kbd } from "@/components/ui/kbd";
 import { Button } from "@/components/ui/button";
-import { ApiError, createIssue, deleteSavedView, getCurrentUser, getSavedViews, saveSavedView } from "@/lib/api";
+import { ApiError, createIssue, createOnboardingSample, deleteSavedView, getCurrentUser, getSavedViews, saveSavedView } from "@/lib/api";
 import { addQueueLabel, matchesQueueAdvancedFilter, matchesQueueView, toQueueItem } from "../data/queue";
 import { useAllIssues } from "../hooks/use-all-issues";
 import { useTeamIssues } from "../hooks/use-team-issues";
@@ -108,6 +108,18 @@ export function QueuePage({ initialFilter = "all", initialView = "all", teamId, 
   const deleteViewMutation = useMutation({
     mutationFn: (viewId: string) => deleteSavedView(viewId),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["saved-views"] }),
+  });
+  const sampleMutation = useMutation({
+    mutationFn: () => {
+      if (!projectId) throw new Error("No project membership is available.");
+      return createOnboardingSample(projectId);
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["issues", "all"] });
+      void queryClient.invalidateQueries({ queryKey: ["agents"] });
+      void queryClient.invalidateQueries({ queryKey: ["approvals"] });
+      void queryClient.invalidateQueries({ queryKey: ["inbox"] });
+    },
   });
   const statusMutation = useMutation({
     mutationFn: async ({ item, status }: { item: ReturnType<typeof toQueueItem>; status: IssueStatus }) => {
@@ -370,7 +382,7 @@ export function QueuePage({ initialFilter = "all", initialView = "all", teamId, 
         onRefresh={() => void queueQuery.refetch()}
         onCreate={() => setCreateOpen(true)}
       />
-      {guided ? <section className="mx-4 my-3 grid gap-3 rounded-lg border border-primary/30 bg-primary/5 p-4 text-sm" aria-labelledby="getting-started-title"><div className="flex items-start justify-between gap-3"><div><h2 id="getting-started-title" className="font-medium">A quick tour of Riichi</h2><p className="mt-1 text-xs text-muted-foreground">Start with the queue, then explore the human and agent workflows.</p></div><Button variant="ghost" size="sm" className="h-8" onClick={() => void navigate({ search: () => ({ ...serializeQueueSearch(searchState) }) as never, replace: true })}>Dismiss</Button></div><div className="grid gap-2 sm:grid-cols-4"><Link className="rounded-md border border-border/60 bg-background/60 p-2 text-xs hover:bg-muted/50" to="/$organizationSlug/issues" params={{ organizationSlug }}><span className="font-medium">1. Triage work</span><span className="mt-1 block text-muted-foreground">Filter and open an issue.</span></Link><Link className="rounded-md border border-border/60 bg-background/60 p-2 text-xs hover:bg-muted/50" to="/$organizationSlug/agents" params={{ organizationSlug }}><span className="font-medium">2. Agent workflow</span><span className="mt-1 block text-muted-foreground">Inspect claim and report surfaces.</span></Link><Link className="rounded-md border border-border/60 bg-background/60 p-2 text-xs hover:bg-muted/50" to="/$organizationSlug/approvals" params={{ organizationSlug }}><span className="font-medium">3. Approvals</span><span className="mt-1 block text-muted-foreground">Review versioned decisions.</span></Link><Link className="rounded-md border border-border/60 bg-background/60 p-2 text-xs hover:bg-muted/50" to="/$organizationSlug/inbox" params={{ organizationSlug }}><span className="font-medium">4. Inbox</span><span className="mt-1 block text-muted-foreground">Follow actionable notifications.</span></Link></div></section> : null}
+      {guided ? <section className="mx-4 my-3 grid gap-3 rounded-lg border border-primary/30 bg-primary/5 p-4 text-sm" aria-labelledby="getting-started-title"><div className="flex items-start justify-between gap-3"><div><h2 id="getting-started-title" className="font-medium">A quick tour of Riichi</h2><p className="mt-1 text-xs text-muted-foreground">Start with the queue, then explore the human and agent workflows.</p></div><Button variant="ghost" size="sm" className="h-8" onClick={() => void navigate({ search: () => ({ ...serializeQueueSearch(searchState) }) as never, replace: true })}>Dismiss</Button></div>{activeMembership?.role === "owner" || activeMembership?.role === "admin" ? <div className="flex flex-wrap items-center gap-2 rounded-md border border-border/60 bg-background/50 p-3 text-xs"><span className="text-muted-foreground">Want real examples?</span><Button size="sm" className="h-8" onClick={() => sampleMutation.mutate()} disabled={sampleMutation.isPending}>{sampleMutation.isPending ? "Creating sample…" : "Create guided sample"}</Button>{sampleMutation.isSuccess ? <span role="status" className="text-emerald-400">Sample workflow is ready.</span> : null}{sampleMutation.error ? <span role="alert" className="text-destructive">{sampleMutation.error.message}</span> : null}</div> : null}<div className="grid gap-2 sm:grid-cols-4"><Link className="rounded-md border border-border/60 bg-background/60 p-2 text-xs hover:bg-muted/50" to="/$organizationSlug/issues" params={{ organizationSlug }}><span className="font-medium">1. Triage work</span><span className="mt-1 block text-muted-foreground">Filter and open an issue.</span></Link><Link className="rounded-md border border-border/60 bg-background/60 p-2 text-xs hover:bg-muted/50" to="/$organizationSlug/agents" params={{ organizationSlug }}><span className="font-medium">2. Agent workflow</span><span className="mt-1 block text-muted-foreground">Inspect claim and report surfaces.</span></Link><Link className="rounded-md border border-border/60 bg-background/60 p-2 text-xs hover:bg-muted/50" to="/$organizationSlug/approvals" params={{ organizationSlug }}><span className="font-medium">3. Approvals</span><span className="mt-1 block text-muted-foreground">Review versioned decisions.</span></Link><Link className="rounded-md border border-border/60 bg-background/60 p-2 text-xs hover:bg-muted/50" to="/$organizationSlug/inbox" params={{ organizationSlug }}><span className="font-medium">4. Inbox</span><span className="mt-1 block text-muted-foreground">Follow actionable notifications.</span></Link></div></section> : null}
       {selectedIssueIds.size > 0 ? <QueueBulkActionBar count={selectedIssueIds.size} labels={[...new Set(allItems.flatMap((item) => item.labels))].sort()} accountId={meQuery.data?.account_id} onSelectAll={() => setSelectedIssueIds(new Set(visibleItems.map((item) => item.issueId)))} onClear={() => setSelectedIssueIds(new Set())} onApply={(action) => void applyBulkAction(action)} /> : null}
       <QueueFilterChips state={searchState} items={allItems} onChange={(next) => updateSearch(next, true)} />
       <QueueList

@@ -543,6 +543,58 @@
         ],
         "type": "object"
       },
+      "OnboardingSample": {
+        "properties": {
+          "agent_issue_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "approval_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "project_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "recovery_checklist_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "recovery_issue_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "role_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "session_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "triage_issue_id": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id",
+          "role_id",
+          "session_id",
+          "triage_issue_id",
+          "agent_issue_id",
+          "recovery_issue_id",
+          "approval_id",
+          "recovery_checklist_id",
+          "created_at"
+        ],
+        "type": "object"
+      },
       "ReadyRequest": {
         "properties": {
           "limit": {
@@ -1560,6 +1612,34 @@
         "responses": {
           "200": {
             "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/onboarding-sample": {
+      "post": {
+        "operationId": "createOnboardingSample",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnboardingSample"
+                }
+              }
+            },
+            "description": "Authoritative guided workflow sample"
           }
         }
       }

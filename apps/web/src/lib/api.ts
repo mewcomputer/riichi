@@ -290,6 +290,18 @@ export type CreatedAgentSession = {
   expires_at: string;
 };
 
+export type OnboardingSample = {
+  project_id: string;
+  role_id: string;
+  session_id: string;
+  triage_issue_id: string;
+  agent_issue_id: string;
+  recovery_issue_id: string;
+  approval_id: string;
+  recovery_checklist_id: string;
+  created_at: string;
+};
+
 export type AgentRoster = {
   roles: AgentRole[];
   sessions: AgentSession[];
@@ -783,6 +795,14 @@ export function createAgentSession(projectId: string, roleId: string, lifetimeSe
     `/api/v1/projects/${encodeURIComponent(projectId)}/agent-roles/${encodeURIComponent(roleId)}/sessions`,
     "POST",
     { lifetime_seconds: lifetimeSeconds },
+  );
+}
+
+export function createOnboardingSample(projectId: string) {
+  return sendJson<OnboardingSample>(
+    `/api/v1/projects/${encodeURIComponent(projectId)}/onboarding-sample`,
+    "POST",
+    {},
   );
 }
 

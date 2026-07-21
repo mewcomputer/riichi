@@ -853,6 +853,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{project_id}/onboarding-sample": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["createOnboardingSample"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{project_id}/outbox/{message_id}/redrive": {
         parameters: {
             query?: never;
@@ -1371,6 +1387,26 @@ export interface components {
             read_at?: string | null;
             /** Format: uuid */
             recipient_account_id: string;
+        };
+        OnboardingSample: {
+            /** Format: uuid */
+            agent_issue_id: string;
+            /** Format: uuid */
+            approval_id: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: uuid */
+            project_id: string;
+            /** Format: uuid */
+            recovery_checklist_id: string;
+            /** Format: uuid */
+            recovery_issue_id: string;
+            /** Format: uuid */
+            role_id: string;
+            /** Format: uuid */
+            session_id: string;
+            /** Format: uuid */
+            triage_issue_id: string;
         };
         ReadyRequest: {
             /** Format: int64 */
@@ -2663,6 +2699,28 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    createOnboardingSample: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Authoritative guided workflow sample */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingSample"];
+                };
             };
         };
     };
