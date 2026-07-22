@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Outlet, useLocation, useNavigate } from '@tanstack/react-router'
-import { LoaderCircle } from "lucide-react";
+import { LoaderCircle } from "@/lib/product-icons";
 
 import { ApiError, getCurrentUser } from "@/lib/api";
 

@@ -211,6 +211,39 @@
         ],
         "type": "object"
       },
+      "CliLoginExchangeResponse": {
+        "properties": {
+          "session_token": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "session_token"
+        ],
+        "type": "object"
+      },
+      "CliLoginStartResponse": {
+        "properties": {
+          "login_url": {
+            "type": "string"
+          },
+          "token": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "login_url"
+        ],
+        "type": "object"
+      },
       "ContextRequest": {
         "properties": {
           "document_frontiers": {
@@ -362,6 +395,12 @@
       },
       "NavigationProject": {
         "properties": {
+          "icon": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "id": {
             "format": "uuid",
             "type": "string"
@@ -376,6 +415,7 @@
         "required": [
           "id",
           "name",
+          "icon",
           "role"
         ],
         "type": "object"
@@ -632,6 +672,17 @@
         ],
         "type": "object"
       },
+      "ResolveRequest": {
+        "properties": {
+          "display_key": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "display_key"
+        ],
+        "type": "object"
+      },
       "SaveViewRequest": {
         "properties": {
           "filters": {
@@ -760,6 +811,53 @@
         }
       }
     },
+    "/api/v1/auth/cli-login": {
+      "post": {
+        "operationId": "startCliLogin",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CliLoginStartResponse"
+                }
+              }
+            },
+            "description": "Started browser handoff"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/cli-login/{token}/exchange": {
+      "post": {
+        "operationId": "exchangeCliLogin",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CliLoginExchangeResponse"
+                }
+              }
+            },
+            "description": "CLI human session"
+          },
+          "202": {
+            "description": "Browser login is still pending"
+          }
+        }
+      }
+    },
     "/api/v1/auth/me": {
       "get": {
         "operationId": "get_api_v1_auth_me",
@@ -789,6 +887,16 @@
       },
       "put": {
         "operationId": "put_api_v1_auth_me_avatar",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/me/nux": {
+      "post": {
+        "operationId": "post_api_v1_auth_me_nux",
         "responses": {
           "200": {
             "description": "Successful response"
@@ -1250,6 +1358,16 @@
     "/api/v1/projects": {
       "post": {
         "operationId": "post_api_v1_projects",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}": {
+      "patch": {
+        "operationId": "patch_api_v1_projects__project_id_",
         "responses": {
           "200": {
             "description": "Successful response"
@@ -2025,6 +2143,26 @@
         "responses": {
           "200": {
             "description": "Idempotent report result"
+          }
+        }
+      }
+    },
+    "/api/v1/resolve": {
+      "post": {
+        "operationId": "resolveIssueKey",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Resolved issue ID"
           }
         }
       }

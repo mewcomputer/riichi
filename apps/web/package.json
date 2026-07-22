@@ -16,6 +16,7 @@
     "@fontsource-variable/geist": "^5.2.9",
     "@fontsource-variable/instrument-sans": "^5.2.8",
     "@shadcn/react": "^0.2.1",
+    "@tabler/icons-react": "^3.45.0",
     "@tailwindcss/vite": "^4.3.2",
     "@tanstack/electric-db-collection": "^0.3.12",
     "@tanstack/react-db": "^0.1.92",

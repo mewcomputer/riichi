@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
-import { ArrowLeft, FileText, Layers3, Plus } from "lucide-react";
+import { ArrowLeft, FileText, Layers3, Plus } from "@/lib/product-icons";
 
 import type { CommandMenuGroup } from "@/components/command/command-menu";
 import { DocumentEditor, type DocumentEditorHandle } from "@/components/documents/document-editor";
 import { DocumentRelationships } from "@/components/documents/document-relationships";
+import { teamMarkLabel } from "@/components/team/team-mark";
 import { extractDocumentReferences } from "@/components/documents/document-references";
 import type { ResourceLinkItem } from "@/components/documents/resource-list";
 import { LazyIssueCreateDialog } from "@/components/issues/lazy-issue-create-dialog";
@@ -113,7 +114,7 @@ export function DocumentPage() {
     return [
       ...teams.map((team) => ({
         id: team.id,
-        label: `${team.emoji ?? "◈"} ${team.name}`,
+        label: `${teamMarkLabel(team.emoji)} ${team.name}`,
         description: `${team.key} team`,
         kind: "team" as const,
         href: `/${organizationSlug}/teams/${team.key}`,

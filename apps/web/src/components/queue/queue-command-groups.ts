@@ -1,4 +1,4 @@
-import { Archive, CircleAlert, CircleCheck, Flag, Layers3, Plus, UserRound } from "lucide-react";
+import { Archive, CircleAlert, CircleCheck, Flag, Layers3, Plus, UserRound } from "@/lib/product-icons";
 
 import type { CommandMenuGroup } from "@/components/command/command-menu";
 import type { QueueItem } from "@/data/queue";

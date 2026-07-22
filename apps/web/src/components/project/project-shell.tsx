@@ -1,11 +1,12 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useLocation, useNavigate } from "@tanstack/react-router";
-import { Bell, Bot, Building2, CircleDot, ClipboardCheck, FileText, FolderKanban, Keyboard, Layers3, Settings2, ShieldAlert, UsersRound } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { Bell, Bot, Building2, CircleDot, ClipboardCheck, FileText, FolderKanban, Keyboard, Layers3, Settings2, ShieldAlert, UsersRound } from "@/lib/product-icons";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { Button } from "@/components/ui/button";
 import type { CommandMenuGroup } from "@/components/command/command-menu";
-import type { DocumentRecord, HumanQueueIssue, NavigationResponse } from "@/lib/api";
+import { completeNux, getCurrentUser, type DocumentRecord, type HumanQueueIssue, type NavigationResponse } from "@/lib/api";
 import { organizationSlug as toOrganizationSlug } from "@/lib/organization-slug";
 import { useNavigation } from "@/hooks/use-navigation";
 import { advanceShortcut } from "@/lib/keyboard-shortcuts";
@@ -16,6 +17,46 @@ const LazyCommandMenu = lazy(() =>
 const LazyShortcutReferenceDialog = lazy(() =>
   import("@/components/command/command-menu").then(({ ShortcutReferenceDialog }) => ({ default: ShortcutReferenceDialog })),
 );
+
+export const CURRENT_NUX_VERSION = "2026-07-22";
+
+function GuidedTour() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const meQuery = useQuery({ queryKey: ["auth", "me"], queryFn: getCurrentUser, retry: false });
+  const completeMutation = useMutation({
+    mutationFn: () => completeNux(CURRENT_NUX_VERSION),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["auth", "me"] }),
+  });
+  if (meQuery.isPending || meQuery.error || meQuery.data?.last_completed_nux_version === CURRENT_NUX_VERSION) return null;
+  const organizationSlug = location.pathname.split("/").filter(Boolean)[0] ?? "riichi";
+  const steps = [
+    { match: "/issues", title: "Start with the queue", body: "Find the next issue, open a peek, and take the next authorized action.", action: "Open the queue", to: "/$organizationSlug/issues" },
+    { match: "/agents", title: "See agent work", body: "Inspect active leases and reports without losing the project context.", action: "See agents", to: "/$organizationSlug/agents" },
+    { match: "/approvals", title: "Review decisions", body: "Approvals make human authority explicit before sensitive changes happen.", action: "Open approvals", to: "/$organizationSlug/approvals" },
+    { match: "/inbox", title: "Follow what needs attention", body: "Notifications link directly to the issue or control that needs you.", action: "Open inbox", to: "/$organizationSlug/inbox" },
+  ];
+  const step = steps.find((candidate) => location.pathname.includes(candidate.match)) ?? steps[0];
+  const finish = () => completeMutation.mutate();
+  return (
+    <aside className="fixed inset-x-3 bottom-3 z-40 mx-auto max-w-xl rounded-lg border border-primary/30 bg-card p-4 shadow-2xl sm:inset-x-auto sm:right-6 sm:w-[min(32rem,calc(100vw-3rem))]" aria-label="Riichi guided tour">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-primary">guided tour</p>
+          <h2 className="mt-1 text-sm font-medium">{step.title}</h2>
+          <p className="mt-1 max-w-[58ch] text-xs leading-relaxed text-muted-foreground">{step.body}</p>
+        </div>
+        <button type="button" className="shrink-0 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground" onClick={finish} disabled={completeMutation.isPending}>Done</button>
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <Button size="sm" onClick={() => void navigate({ to: step.to as never, params: { organizationSlug } as never })}>{step.action}</Button>
+        <Button size="sm" variant="ghost" onClick={finish} disabled={completeMutation.isPending}>Skip tour</Button>
+        {completeMutation.error ? <span role="alert" className="text-xs text-destructive">Could not save tour state.</span> : null}
+      </div>
+    </aside>
+  );
+}
 
 export function ProjectShell({
   sidebar,
@@ -271,6 +312,7 @@ export function ProjectShell({
         className="app-frame min-h-svh w-full overflow-hidden bg-background"
       >
         {sidebar}
+        <GuidedTour />
         <SidebarInset className="min-h-0 overflow-hidden bg-background">
           {children}
           {footer}

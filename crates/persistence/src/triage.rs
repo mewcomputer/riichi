@@ -195,8 +195,12 @@ async fn refresh_blocker_count(
     tx: &mut Transaction<'_, Postgres>,
     issue_id: Uuid,
 ) -> Result<(), Error> {
-    let unresolved_count = sqlx::query_scalar::<_, i32>(
-        "UPDATE issue_dispatch d
+    let transition = sqlx::query_as::<_, (i32, i32)>(
+        "WITH previous AS (
+             SELECT unresolved_blocker_count AS old_count
+             FROM issue_dispatch WHERE issue_id = $1 FOR UPDATE
+         ), updated AS (
+             UPDATE issue_dispatch d
          SET unresolved_blocker_count = (
              SELECT count(*)::integer
              FROM issue_edges e
@@ -207,18 +211,23 @@ async fn refresh_blocker_count(
          ),
          dispatch_version = dispatch_version + 1,
          updated_at = now()
-         WHERE d.issue_id = $1",
+         WHERE d.issue_id = $1
+         RETURNING unresolved_blocker_count AS new_count
+         )
+         SELECT previous.old_count, updated.new_count FROM previous, updated",
     )
     .bind(issue_id)
     .fetch_one(&mut **tx)
     .await?;
-    if unresolved_count > 0 {
+    let (old_count, new_count) = transition;
+    if old_count == 0 && new_count > 0 {
         sqlx::query(
             "INSERT INTO notifications
              (id, recipient_account_id, kind, project_id, issue_id, payload, dedupe_key)
              SELECT gen_random_uuid(), s.account_id, 'assignment', i.project_id, i.id,
                     jsonb_build_object('subscription_kind', 'blocked_dependency'),
-                    'subscription:blocked_dependency:' || i.id::text
+                    'subscription:blocked_dependency:' || i.id::text || ':' ||
+                    gen_random_uuid()::text
              FROM issues i
              JOIN issue_subscriptions s ON s.project_id = i.project_id
              WHERE i.id = $1 AND s.kind = 'blocked_dependency'
@@ -307,8 +316,33 @@ impl Database {
         issue: models::IssueCreate,
         actor_id: Uuid,
     ) -> Result<Uuid, Error> {
+        self.create_issue_with_metadata_and_template(project_id, issue, actor_id, None)
+            .await
+    }
+
+    pub async fn create_issue_with_metadata_and_template(
+        &self,
+        project_id: Uuid,
+        issue: models::IssueCreate,
+        actor_id: Uuid,
+        template: Option<(Uuid, i64)>,
+    ) -> Result<Uuid, Error> {
         validate_issue_create(&issue)?;
         let mut tx = self.pool.begin().await?;
+        if let Some((template_id, template_version)) = template {
+            let existing = sqlx::query_scalar::<_, bool>(
+                "SELECT EXISTS (SELECT 1 FROM issue_template_instances WHERE issue_id = $1 AND template_id = $2 AND template_version = $3)",
+            )
+            .bind(issue.id)
+            .bind(template_id)
+            .bind(template_version)
+            .fetch_one(&mut *tx)
+            .await?;
+            if existing {
+                tx.commit().await?;
+                return Ok(issue.id);
+            }
+        }
         if let Some(parent_issue_id) = issue.parent_issue_id {
             let parent_exists = sqlx::query_scalar::<_, bool>(
                 "SELECT EXISTS (SELECT 1 FROM issues WHERE project_id = $1 AND id = $2)",
@@ -444,6 +478,17 @@ impl Database {
             serde_json::json!({ "issue_id": issue.id, "event": "created" }),
         )
         .await?;
+        if let Some((template_id, template_version)) = template {
+            sqlx::query(
+                "INSERT INTO issue_template_instances (issue_id, template_id, template_version)
+                 VALUES ($1, $2, $3)",
+            )
+            .bind(issue.id)
+            .bind(template_id)
+            .bind(template_version)
+            .execute(&mut *tx)
+            .await?;
+        }
         tx.commit().await?;
         Ok(issue.id)
     }

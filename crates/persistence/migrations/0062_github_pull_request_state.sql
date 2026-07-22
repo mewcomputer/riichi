@@ -3,6 +3,8 @@ ALTER TABLE external_links
         CHECK (external_kind IN ('issue', 'pull_request'));
 ALTER TABLE external_links
     DROP CONSTRAINT IF EXISTS external_links_project_provider_external_id_key;
+ALTER TABLE external_links
+    DROP CONSTRAINT IF EXISTS external_links_project_id_provider_external_id_key;
 
 CREATE UNIQUE INDEX external_links_project_external_key_idx
     ON external_links (project_id, provider, external_kind, external_id);

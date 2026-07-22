@@ -1,4 +1,4 @@
-import { Filter, Pin, PinOff, SlidersHorizontal, X } from "lucide-react";
+import { Filter, Pin, PinOff, SlidersHorizontal, X } from "@/lib/product-icons";
 import * as React from "react";
 
 import { Button } from "@/components/ui/button";

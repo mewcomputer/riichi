@@ -28,7 +28,7 @@ import {
   Quote,
   Strikethrough,
   Type,
-} from "lucide-react";
+} from "@/lib/product-icons";
 
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";

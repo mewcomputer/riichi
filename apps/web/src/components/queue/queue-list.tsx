@@ -1,4 +1,4 @@
-import { Circle, CircleAlert, CircleCheck, CircleDot, CircleX, Search } from "lucide-react";
+import { Circle, CircleAlert, CircleCheck, CircleDot, CircleX, Search } from "@/lib/product-icons";
 import { Link } from "@tanstack/react-router";
 
 import { Badge } from "@/components/ui/badge";

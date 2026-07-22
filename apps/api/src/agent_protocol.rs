@@ -18,6 +18,21 @@ pub(super) async fn ready(
     }))
 }
 
+pub(super) async fn resolve(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(request): Json<ResolveRequest>,
+) -> Result<Json<ResolveResponse>, ApiError> {
+    let (project_id, _session_id) = principal(&state, &headers).await?;
+    let issue_id = state
+        .application
+        .database()
+        .resolve_issue_key(project_id, &request.display_key)
+        .await
+        .map_err(ApiError::from)?;
+    Ok(Json(ResolveResponse { issue_id }))
+}
+
 pub(super) async fn claim(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -203,6 +218,16 @@ pub(super) struct AgentDocumentEditRequest {
     node_path: Vec<usize>,
     offset: usize,
     text: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub(super) struct ResolveRequest {
+    display_key: String,
+}
+
+#[derive(Debug, Serialize)]
+pub(super) struct ResolveResponse {
+    issue_id: Option<Uuid>,
 }
 
 #[derive(Debug, Serialize)]

@@ -100,7 +100,7 @@ impl Database {
              ORDER BY fetched_at DESC, id DESC LIMIT $2",
         )
         .bind(project_id)
-        .bind(limit.clamp(1, 100))
+        .bind(limit.clamp(1, 101))
         .fetch_all(&self.pool)
         .await?)
     }
@@ -108,6 +108,7 @@ impl Database {
     pub async fn link_github_pull_request(
         &self,
         project_id: Uuid,
+        actor_id: Uuid,
         pull_request_id: Uuid,
         issue_id: Option<Uuid>,
     ) -> Result<models::GithubPullRequestRecord, Error> {
@@ -123,25 +124,44 @@ impl Database {
                 return Err(PersistenceError::IssueNotFound);
             }
         }
-        sqlx::query(
+        let mut tx = self.pool.begin().await?;
+        let updated = sqlx::query(
             "UPDATE github_pull_request_snapshots SET issue_id = $3
              WHERE id = $1 AND project_id = $2",
         )
         .bind(pull_request_id)
         .bind(project_id)
         .bind(issue_id)
-        .execute(&self.pool)
+        .execute(&mut *tx)
         .await?;
-        sqlx::query_as::<_, models::GithubPullRequestRecord>(
+        if updated.rows_affected() == 0 {
+            return Err(PersistenceError::IssueNotFound.into());
+        }
+        sqlx::query(
+            "INSERT INTO audit_records
+             (id, project_id, actor_id, request_id, operation, target_type, target_id, change_summary)
+             VALUES ($1, $2, $3, $4, 'github_pull_request_linked', 'github_pull_request', $5, $6)",
+        )
+        .bind(Uuid::now_v7())
+        .bind(project_id)
+        .bind(actor_id)
+        .bind(current_request_id())
+        .bind(pull_request_id)
+        .bind(serde_json::json!({ "issue_id": issue_id }))
+        .execute(&mut *tx)
+        .await?;
+        let record = sqlx::query_as::<_, models::GithubPullRequestRecord>(
             "SELECT id, project_id, issue_id, repository, pull_request_number, title, url, state,
                     review_state, ci_state, payload, external_updated_at, fetched_at
              FROM github_pull_request_snapshots WHERE id = $1 AND project_id = $2",
         )
         .bind(pull_request_id)
         .bind(project_id)
-        .fetch_optional(&self.pool)
+        .fetch_optional(&mut *tx)
         .await?
-        .ok_or(PersistenceError::IssueNotFound)
+        .ok_or(PersistenceError::IssueNotFound)?;
+        tx.commit().await?;
+        Ok(record)
     }
 
     pub async fn record_github_delivery(
@@ -208,9 +228,9 @@ impl Database {
         let mut tx = self.pool.begin().await?;
         let link_id = sqlx::query_scalar::<_, Uuid>(
             "INSERT INTO external_links
-             (id, project_id, issue_id, provider, external_id, repository, external_number, url)
-             VALUES ($1, $2, $3, 'github', $4, $5, $6, $7)
-             ON CONFLICT (project_id, provider, external_id)
+             (id, project_id, issue_id, provider, external_kind, external_id, repository, external_number, url)
+             VALUES ($1, $2, $3, 'github', 'issue', $4, $5, $6, $7)
+             ON CONFLICT (project_id, provider, external_kind, external_id)
              DO UPDATE SET issue_id = COALESCE(EXCLUDED.issue_id, external_links.issue_id),
                            repository = EXCLUDED.repository,
                            external_number = EXCLUDED.external_number,

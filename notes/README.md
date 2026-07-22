@@ -13,6 +13,10 @@ The first completed artifact is the [pilot PRD](./riichi-pilot-prd.md). The [pil
 
 The [familiarity and interaction optimization RFC](./riichi-familiarity-optimization-rfc.md) defines the bounded UX pass for teams arriving from Linear-like issue trackers. It improves navigation, queue ergonomics, keyboard use, and feedback without introducing cycles or timeboxing.
 
+The [post-pilot product direction RFC](./riichi-post-pilot-product-direction-rfc.md) extends that direction into a feature order for the full product. It prioritizes operating existing agent state through previews, shared views, relationships, history, dates, workflows, templates, and project visibility before adding heavyweight planning features.
+
+The [human CLI RFC](./riichi-human-cli-rfc.md) defines the slices for making the existing agent CLI easier for people to use without weakening the machine-facing CLI or MCP contract.
+
 - product brief: why Riichi exists, who it serves, and how it differs;
 - MVP PRD: the complete human-and-agent product after the pilot;
 - later technical RFCs: deeper leases and fencing, context construction, tenancy and auth, GitHub integration, and audit/outbox.

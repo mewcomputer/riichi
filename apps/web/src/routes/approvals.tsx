@@ -6,7 +6,7 @@ import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
-import { Check, CircleDot, X } from "lucide-react";
+import { Check, CircleDot, X } from "@/lib/product-icons";
 import { decideApprovalRequest, getCurrentUser, getPendingApprovals } from "@/lib/api";
 import { ProjectHeader } from "@/components/project/project-header";
 import { ProjectShell } from "@/components/project/project-shell";

@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { Link } from "@tanstack/react-router";
 import { useLiveQuery } from "@tanstack/react-db";
-import { Archive, CircleDot, ExternalLink, Layers3, UserRound, X } from "lucide-react";
+import { Archive, CircleDot, ExternalLink, Layers3, UserRound, X } from "@/lib/product-icons";
 
 import { Kbd } from "@/components/ui/kbd";
 import { Button } from "@/components/ui/button";

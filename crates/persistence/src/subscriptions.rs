@@ -40,7 +40,7 @@ impl Database {
         if enabled {
             sqlx::query(
                 "INSERT INTO issue_subscriptions (id, account_id, project_id, issue_id, kind)
-                 VALUES ($1, $2, $3, $4, $5) ON CONFLICT (account_id, project_id, issue_id, kind) DO NOTHING",
+                VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING",
             )
             .bind(Uuid::now_v7())
             .bind(account_id)

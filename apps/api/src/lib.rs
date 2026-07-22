@@ -146,9 +146,13 @@ fn app_with_optional_auth_and_electric_url_and_attachment_store(
         .route("/openapi.json", get(openapi_document))
         .route("/readyz", get(readiness))
         .route("/auth/login", get(login))
+        .route("/auth/cli-login/{token}", get(complete_cli_login))
         .route("/auth/callback", get(callback))
         .route("/auth/logout", post(logout))
         .route("/api/v1/auth/me", get(human_me))
+        .route("/api/v1/auth/cli-login", post(create_cli_login))
+        .route("/api/v1/auth/cli-login/{token}/exchange", post(exchange_cli_login))
+        .route("/api/v1/auth/me/nux", post(complete_nux))
         .route(
             "/api/v1/auth/me/avatar",
             get(human_avatar).put(upload_human_avatar).delete(delete_human_avatar),
@@ -255,6 +259,7 @@ fn app_with_optional_auth_and_electric_url_and_attachment_store(
             get(human_team_issues).post(create_team_issue),
         )
         .route("/api/v1/teams/{team_id}", patch(update_team))
+        .route("/api/v1/projects/{project_id}", patch(update_project))
         .route(
             "/api/v1/organizations/{organization_id}/logo",
             get(organization_logo).put(upload_organization_logo).delete(delete_organization_logo),
@@ -412,6 +417,7 @@ fn app_with_optional_auth_and_electric_url_and_attachment_store(
         )
         .route("/api/v1/invites/accept", post(accept_invite))
         .route("/api/v1/ready", post(ready))
+        .route("/api/v1/resolve", post(resolve))
         .route("/api/v1/claim", post(claim))
         .route("/api/v1/renew", post(renew))
         .route("/api/v1/report", post(report))
@@ -545,7 +551,10 @@ pub fn openapi_document_value() -> Value {
             "description": "Generated contract for Riichi agent and human collaboration APIs."
         },
         "paths": {
+            "/api/v1/auth/cli-login": {"post": {"operationId": "startCliLogin", "responses": {"200": {"description": "Started browser handoff", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CliLoginStartResponse"}}}}}}},
+            "/api/v1/auth/cli-login/{token}/exchange": {"post": {"operationId": "exchangeCliLogin", "parameters": [{"name": "token", "in": "path", "required": true, "schema": {"type": "string"}}], "responses": {"200": {"description": "CLI human session", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CliLoginExchangeResponse"}}}}, "202": {"description": "Browser login is still pending"}}}},
             "/api/v1/ready": {"post": {"operationId": "ready", "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ReadyRequest"}}}}, "responses": {"200": {"description": "Eligible work and snapshot exclusions"}}}},
+            "/api/v1/resolve": {"post": {"operationId": "resolveIssueKey", "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ResolveRequest"}}}}, "responses": {"200": {"description": "Resolved issue ID"}}}},
             "/api/v1/claim": {"post": {"operationId": "claim", "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ClaimRequest"}}}}, "responses": {"200": {"description": "Fenced lease"}}}},
             "/api/v1/context": {"post": {"operationId": "context", "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ContextRequest"}}}}, "responses": {"200": {"description": "Bounded provenance-aware context"}}}},
             "/api/v1/report/batch": {"post": {"operationId": "reportBatch", "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ReportBatchRequest"}}}}, "responses": {"200": {"description": "Idempotent report result"}}}},
@@ -581,6 +590,9 @@ pub fn openapi_document_value() -> Value {
         },
         "components": {"schemas": {
             "ReadyRequest": {"type": "object", "properties": {"limit": {"type": "integer", "format": "int64"}}},
+            "ResolveRequest": {"type": "object", "required": ["display_key"], "properties": {"display_key": {"type": "string"}}},
+            "CliLoginStartResponse": {"type": "object", "required": ["token", "login_url"], "properties": {"token": {"type": "string"}, "login_url": {"type": "string"}}},
+            "CliLoginExchangeResponse": {"type": "object", "required": ["status", "session_token"], "properties": {"status": {"type": "string"}, "session_token": {"type": ["string", "null"]}}},
             "ClaimRequest": {"type": "object", "required": ["issue_id", "idempotency_key"], "properties": {"issue_id": {"type": "string", "format": "uuid"}, "requested_ttl_seconds": {"type": "integer", "format": "int64"}, "idempotency_key": {"type": "string"}}},
             "ContextRequest": {"type": "object", "required": ["issue_id"], "properties": {"issue_id": {"type": "string", "format": "uuid"}, "max_bytes": {"type": "integer", "format": "int64"}, "document_frontiers": {"type": ["array", "null"], "items": {"$ref": "#/components/schemas/LoroFrontier"}}}},
             "ReportBatchRequest": {"type": "object", "required": ["lease_id", "fencing_token", "idempotency_key", "operations"], "properties": {"lease_id": {"type": "string", "format": "uuid"}, "fencing_token": {"type": "integer", "format": "int64"}, "idempotency_key": {"type": "string"}, "operations": {"type": "array", "maxItems": 50, "items": {"type": "object"}}}},
@@ -593,7 +605,7 @@ pub fn openapi_document_value() -> Value {
             "NavigationResponse": {"type": "object", "required": ["organizations"], "properties": {"organizations": {"type": "array", "items": {"$ref": "#/components/schemas/NavigationOrganization"}}}},
             "NavigationOrganization": {"type": "object", "required": ["id", "name", "role", "logo_url", "teams"], "properties": {"id": {"type": "string", "format": "uuid"}, "name": {"type": "string"}, "role": {"type": "string"}, "logo_url": {"type": ["string", "null"]}, "teams": {"type": "array", "items": {"$ref": "#/components/schemas/NavigationTeam"}}}},
             "NavigationTeam": {"type": "object", "required": ["id", "name", "key", "emoji", "projects", "views"], "properties": {"id": {"type": "string", "format": "uuid"}, "name": {"type": "string"}, "key": {"type": "string"}, "emoji": {"type": ["string", "null"]}, "projects": {"type": "array", "items": {"$ref": "#/components/schemas/NavigationProject"}}, "views": {"type": "array", "items": {"$ref": "#/components/schemas/NavigationView"}}}},
-            "NavigationProject": {"type": "object", "required": ["id", "name", "role"], "properties": {"id": {"type": "string", "format": "uuid"}, "name": {"type": "string"}, "role": {"type": "string"}}},
+            "NavigationProject": {"type": "object", "required": ["id", "name", "icon", "role"], "properties": {"id": {"type": "string", "format": "uuid"}, "name": {"type": "string"}, "icon": {"type": ["string", "null"]}, "role": {"type": "string"}}},
             "NavigationView": {"type": "object", "required": ["id", "name"], "properties": {"id": {"type": "string", "format": "uuid"}, "name": {"type": "string"}}}
             ,"PinViewRequest": {"type": "object", "required": ["pinned"], "properties": {"pinned": {"type": "boolean"}}}
             ,"SavedView": {"type": "object", "required": ["id", "account_id", "project_id", "visibility", "pinned", "name", "filters", "created_at", "updated_at"], "properties": {"id": {"type": "string", "format": "uuid"}, "account_id": {"type": "string", "format": "uuid"}, "project_id": {"type": ["string", "null"], "format": "uuid"}, "visibility": {"type": "string"}, "pinned": {"type": "boolean"}, "name": {"type": "string"}, "filters": {"type": "object"}, "created_at": {"type": "string", "format": "date-time"}, "updated_at": {"type": "string", "format": "date-time"}}}
@@ -670,10 +682,14 @@ pub fn openapi_document_value() -> Value {
 
 const DOCUMENTED_ROUTE_SURFACE: &[(&str, &str)] = &[
     ("/api/v1/auth/me", "get"),
+    ("/api/v1/auth/cli-login", "post"),
+    ("/api/v1/auth/cli-login/{token}/exchange", "post"),
+    ("/api/v1/auth/me/nux", "post"),
     ("/api/v1/auth/me/avatar", "get"),
     ("/api/v1/auth/me/avatar", "put"),
     ("/api/v1/auth/me/avatar", "delete"),
     ("/api/v1/teams/{team_id}", "patch"),
+    ("/api/v1/projects/{project_id}", "patch"),
     ("/api/v1/organizations/{organization_id}/logo", "get"),
     ("/api/v1/organizations/{organization_id}/logo", "put"),
     ("/api/v1/organizations/{organization_id}/logo", "delete"),
@@ -907,9 +923,16 @@ struct HumanMeResponse {
     account_id: Uuid,
     email: Option<String>,
     display_name: Option<String>,
+    last_completed_nux_version: Option<String>,
+    last_completed_nux_at: Option<chrono::DateTime<chrono::Utc>>,
     avatar_url: Option<String>,
     memberships: Vec<HumanMembershipResponse>,
     teams: Vec<HumanTeamMembershipResponse>,
+}
+
+#[derive(Debug, Deserialize)]
+struct CompleteNuxRequest {
+    version: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -961,6 +984,7 @@ struct NavigationViewResponse {
 struct NavigationProjectResponse {
     id: Uuid,
     name: String,
+    icon: Option<String>,
     role: String,
 }
 
@@ -1013,6 +1037,11 @@ struct CreateIssueRequest {
 #[derive(Debug, Deserialize)]
 struct UpdateTeamRequest {
     emoji: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct UpdateProjectRequest {
+    icon: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -2030,6 +2059,7 @@ mod tests {
         assert_eq!(document["openapi"], "3.0.3");
         for path in [
             "/api/v1/ready",
+            "/api/v1/resolve",
             "/api/v1/claim",
             "/api/v1/context",
             "/api/v1/report/batch",

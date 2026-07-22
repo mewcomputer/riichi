@@ -1,4 +1,4 @@
-import type { LucideIcon } from "lucide-react";
+import type { ProductIcon } from "@/lib/product-icons";
 
 import {
   Command,
@@ -16,7 +16,7 @@ import { Kbd } from "@/components/ui/kbd";
 export type CommandMenuItem = {
   id: string;
   label: string;
-  icon: LucideIcon;
+  icon: ProductIcon;
   shortcut?: string;
   keywords?: string[];
   onSelect: () => void;

@@ -1,4 +1,4 @@
-import { Plus, RefreshCw, Search } from "lucide-react";
+import { Plus, RefreshCw, Search } from "@/lib/product-icons";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

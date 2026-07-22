@@ -3,7 +3,7 @@ import { useEditor, EditorContent } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
-import { Bold, Italic, List } from "lucide-react";
+import { Bold, Italic, List } from "@/lib/product-icons";
 
 import { Button } from "@/components/ui/button";
 

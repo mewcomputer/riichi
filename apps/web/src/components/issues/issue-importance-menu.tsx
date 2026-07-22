@@ -1,4 +1,4 @@
-import { ChevronDown } from "lucide-react";
+import { ChevronDown } from "@/lib/product-icons";
 import { useId, useState } from "react";
 
 import { Button } from "@/components/ui/button";

@@ -68,6 +68,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/cli-login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["startCliLogin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/cli-login/{token}/exchange": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["exchangeCliLogin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/me": {
         parameters: {
             query?: never;
@@ -95,6 +127,22 @@ export interface paths {
         put: operations["put_api_v1_auth_me_avatar"];
         post?: never;
         delete: operations["delete_api_v1_auth_me_avatar"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/me/nux": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["post_api_v1_auth_me_nux"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -483,6 +531,22 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{project_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["patch_api_v1_projects__project_id_"];
         trace?: never;
     };
     "/api/v1/projects/{project_id}/agent-roles": {
@@ -1159,6 +1223,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["resolveIssueKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sync/approvals": {
         parameters: {
             query?: never;
@@ -1443,6 +1523,14 @@ export interface components {
             /** Format: int64 */
             requested_ttl_seconds?: number;
         };
+        CliLoginExchangeResponse: {
+            session_token: string | null;
+            status: string;
+        };
+        CliLoginStartResponse: {
+            login_url: string;
+            token: string;
+        };
         ContextRequest: {
             document_frontiers?: components["schemas"]["LoroFrontier"][] | null;
             /** Format: uuid */
@@ -1485,6 +1573,7 @@ export interface components {
             teams: components["schemas"]["NavigationTeam"][];
         };
         NavigationProject: {
+            icon: string | null;
             /** Format: uuid */
             id: string;
             name: string;
@@ -1562,6 +1651,9 @@ export interface components {
             /** Format: uuid */
             lease_id: string;
             operations: Record<string, never>[];
+        };
+        ResolveRequest: {
+            display_key: string;
         };
         SaveViewRequest: {
             filters: Record<string, never>;
@@ -1668,6 +1760,55 @@ export interface operations {
             };
         };
     };
+    startCliLogin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Started browser handoff */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CliLoginStartResponse"];
+                };
+            };
+        };
+    };
+    exchangeCliLogin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description CLI human session */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CliLoginExchangeResponse"];
+                };
+            };
+            /** @description Browser login is still pending */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     get_api_v1_auth_me: {
         parameters: {
             query?: never;
@@ -1723,6 +1864,24 @@ export interface operations {
         };
     };
     delete_api_v1_auth_me_avatar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    post_api_v1_auth_me_nux: {
         parameters: {
             query?: never;
             header?: never;
@@ -2321,6 +2480,24 @@ export interface operations {
         };
     };
     post_api_v1_projects: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    patch_api_v1_projects__project_id_: {
         parameters: {
             query?: never;
             header?: never;
@@ -3300,6 +3477,28 @@ export interface operations {
         };
         responses: {
             /** @description Idempotent report result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    resolveIssueKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolveRequest"];
+            };
+        };
+        responses: {
+            /** @description Resolved issue ID */
             200: {
                 headers: {
                     [name: string]: unknown;

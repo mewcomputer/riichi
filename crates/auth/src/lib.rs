@@ -279,6 +279,14 @@ impl AuthService {
     }
 
     pub async fn begin_login(&self, database: &Database) -> Result<Url, AuthError> {
+        self.begin_login_to(database, "/").await
+    }
+
+    pub async fn begin_login_to(
+        &self,
+        database: &Database,
+        return_to: &str,
+    ) -> Result<Url, AuthError> {
         let (pkce_challenge, pkce_verifier) = PkceCodeChallenge::new_random_sha256();
         let (authorization_url, state, nonce) = self
             .client
@@ -298,12 +306,33 @@ impl AuthService {
                 &self.config.issuer_url,
                 nonce.secret(),
                 pkce_verifier.secret(),
-                "/",
+                return_to,
                 Duration::minutes(i64::from(self.config.login_state_minutes)),
             )
             .await?;
 
         Ok(authorization_url)
+    }
+
+    pub async fn issue_session(
+        &self,
+        database: &Database,
+        account_id: Uuid,
+    ) -> Result<LoginResult, AuthError> {
+        let session_token = CsrfToken::new_random().secret().to_owned();
+        let expires_at = database
+            .create_human_session(
+                Uuid::new_v4(),
+                account_id,
+                &hash_secret(&session_token),
+                Duration::days(i64::from(self.config.session_days)),
+            )
+            .await?;
+        Ok(LoginResult {
+            session_token,
+            return_to: "/".to_owned(),
+            expires_at,
+        })
     }
 
     pub async fn finish_login(
@@ -706,6 +735,8 @@ mod tests {
                 subject: "subject".to_owned(),
                 email: None,
                 display_name: None,
+                last_completed_nux_version: None,
+                last_completed_nux_at: None,
             },
             memberships: vec![HumanMembership {
                 project_id: Uuid::new_v4(),

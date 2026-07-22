@@ -39,7 +39,12 @@ impl Database {
         name: &str,
         snapshot: serde_json::Value,
     ) -> Result<models::IssueTemplateRecord, Error> {
-        Ok(sqlx::query_as::<_, models::IssueTemplateRecord>(
+        let mut tx = self.pool.begin().await?;
+        sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))")
+            .bind(format!("issue-template:{project_id}:{name}"))
+            .execute(&mut *tx)
+            .await?;
+        let record = sqlx::query_as::<_, models::IssueTemplateRecord>(
             "INSERT INTO issue_templates (id, project_id, name, version, snapshot, created_by)
              VALUES ($1, $2, $3, COALESCE((SELECT max(version) + 1 FROM issue_templates WHERE project_id = $2 AND name = $3), 1), $4, $5)
              RETURNING id, project_id, name, version, snapshot, created_by, created_at",
@@ -49,8 +54,10 @@ impl Database {
         .bind(name)
         .bind(snapshot)
         .bind(actor_id)
-        .fetch_one(&self.pool)
-        .await?)
+        .fetch_one(&mut *tx)
+        .await?;
+        tx.commit().await?;
+        Ok(record)
     }
 
     pub async fn record_template_instance(

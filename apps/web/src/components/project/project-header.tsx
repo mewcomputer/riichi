@@ -1,4 +1,4 @@
-import { Bell, Command, MoreHorizontal, type LucideIcon } from "lucide-react";
+import { Bell, Command, MoreHorizontal, type ProductIcon } from "@/lib/product-icons";
 
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -9,7 +9,7 @@ import type { ReactNode } from "react";
 export type ProjectViewTab = {
   value: string;
   label: string;
-  icon: LucideIcon;
+  icon: ProductIcon;
   count?: number;
 };
 
@@ -59,9 +59,11 @@ export function ProjectHeader({
               ))}
             </TabsList>
           </Tabs>
-          <Button variant="ghost" size="icon-sm" aria-label="More views">
-            <MoreHorizontal />
-          </Button>
+          {views.length > 0 ? (
+            <Button variant="ghost" size="icon-sm" aria-label="More views">
+              <MoreHorizontal />
+            </Button>
+          ) : null}
         </>}
       </div>
       <div className="flex items-center gap-1">

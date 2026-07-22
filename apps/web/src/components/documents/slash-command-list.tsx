@@ -1,12 +1,12 @@
 import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
-import type { LucideIcon } from "lucide-react";
+import type { ProductIcon } from "@/lib/product-icons";
 import type { Editor } from "@tiptap/core";
 
 export type SlashCommandItem = {
   id: string;
   label: string;
   description: string;
-  icon: LucideIcon;
+  icon: ProductIcon;
   command: (editor: Editor, range: { from: number; to: number }) => void;
 };
 

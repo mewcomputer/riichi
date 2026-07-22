@@ -1,7 +1,7 @@
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { useState } from "react";
-import { Bold, Italic, List, Send } from "lucide-react";
+import { Bold, Italic, List, Send } from "@/lib/product-icons";
 
 import { Button } from "@/components/ui/button";
 

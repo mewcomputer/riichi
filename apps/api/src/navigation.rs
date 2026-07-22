@@ -51,11 +51,37 @@ pub(super) async fn navigation(
         team.projects.push(NavigationProjectResponse {
             id: row.project_id,
             name: row.project_name,
+            icon: row.project_icon,
             role: row.project_role,
         });
     }
 
     Ok(Json(NavigationResponse { organizations }))
+}
+
+pub(super) async fn update_project(
+    State(state): State<AppState>,
+    Path(project_id): Path<Uuid>,
+    jar: CookieJar,
+    Json(request): Json<UpdateProjectRequest>,
+) -> Result<StatusCode, ApiError> {
+    let principal = human_principal(&state, &jar).await?;
+    let role = state
+        .application
+        .database()
+        .human_project_role(principal.account.id, project_id)
+        .await
+        .map_err(ApiError::from)?;
+    if !matches!(role.as_deref(), Some("owner" | "admin")) {
+        return Err(ApiError::ProjectActionDenied);
+    }
+    state
+        .application
+        .database()
+        .update_project_icon(project_id, request.icon.as_deref())
+        .await
+        .map_err(ApiError::from)?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 async fn require_organization_admin(

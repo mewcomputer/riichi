@@ -1,6 +1,20 @@
 use super::*;
 
 impl Database {
+    pub async fn resolve_issue_key(
+        &self,
+        project_id: Uuid,
+        display_key: &str,
+    ) -> Result<Option<Uuid>, Error> {
+        Ok(
+            sqlx::query_scalar("SELECT id FROM issues WHERE project_id = $1 AND display_key = $2")
+                .bind(project_id)
+                .bind(display_key.trim())
+                .fetch_optional(&self.pool)
+                .await?,
+        )
+    }
+
     pub async fn human_queue(
         &self,
         project_id: Uuid,

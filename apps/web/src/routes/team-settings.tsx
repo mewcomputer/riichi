@@ -6,6 +6,7 @@ import { ProjectHeader } from "@/components/project/project-header";
 import { ProjectShell } from "@/components/project/project-shell";
 import { ProjectSidebar } from "@/components/project/project-sidebar";
 import { TeamEmojiEditor } from "@/components/team/team-emoji-editor";
+import { TeamMark } from "@/components/team/team-mark";
 import { useAppLogout } from "../hooks/use-app-logout";
 import { useActiveProject } from "../hooks/use-active-project";
 import { useNavigation } from "../hooks/use-navigation";
@@ -50,7 +51,7 @@ export function TeamSettingsPage() {
         <header><h1 className="text-2xl font-medium tracking-tight">Team settings</h1><p className="mt-1 text-sm text-muted-foreground">Identity and access for {team.name}.</p></header>
         <section className="grid gap-4 border-y border-border/60 py-6">
           <div><h2 className="text-sm font-medium">Identity</h2><p className="mt-1 text-xs text-muted-foreground">This emoji appears beside the team throughout Riichi.</p></div>
-          <div className="flex items-center justify-between rounded-md border border-border/60 px-3 py-3"><div className="flex items-center gap-3"><span className="text-xl">{team.emoji ?? "◈"}</span><div className="grid gap-1"><span className="text-sm font-medium">{team.name}</span><span className="font-mono text-xs text-muted-foreground">{team.key}</span></div></div><TeamEmojiEditor team={team} canManage={canManage} onSaved={() => void queryClient.invalidateQueries({ queryKey: ["navigation"] })} /></div>
+          <div className="flex items-center justify-between rounded-md border border-border/60 px-3 py-3"><div className="flex items-center gap-3"><TeamMark value={team.emoji} className="size-5" /><div className="grid gap-1"><span className="text-sm font-medium">{team.name}</span><span className="font-mono text-xs text-muted-foreground">{team.key}</span></div></div><TeamEmojiEditor team={team} canManage={canManage} onSaved={() => void queryClient.invalidateQueries({ queryKey: ["navigation"] })} /></div>
         </section>
       </main>
     </ProjectShell>

@@ -10,6 +10,8 @@ export type HumanMe = {
   account_id: string;
   email: string | null;
   display_name: string | null;
+  last_completed_nux_version: string | null;
+  last_completed_nux_at: string | null;
   avatar_url: string | null;
   memberships: HumanMembership[];
   teams: Array<{
@@ -101,6 +103,7 @@ export type ProjectOverview = {
     change_summary: Record<string, unknown>;
     created_at: string;
   }>;
+  issues_truncated: boolean;
 };
 
 export type GithubPullRequest = {
@@ -117,6 +120,11 @@ export type GithubPullRequest = {
   payload: Record<string, unknown>;
   external_updated_at: string | null;
   fetched_at: string;
+};
+
+export type GithubPullRequestsResponse = {
+  pull_requests: GithubPullRequest[];
+  truncated: boolean;
 };
 
 export type IssueEdge = {
@@ -491,6 +499,10 @@ async function sendNoContent(path: string, method: "POST" | "PATCH" | "DELETE" =
 
 export function getCurrentUser() {
   return getJson<HumanMe>("/api/v1/auth/me");
+}
+
+export function completeNux(version: string) {
+  return sendNoContent("/api/v1/auth/me/nux", "POST", { version });
 }
 
 export async function getNavigation() {
@@ -948,6 +960,10 @@ export function updateTeamEmoji(teamId: string, emoji: string | null) {
   return sendNoContent(`/api/v1/teams/${encodeURIComponent(teamId)}`, "PATCH", { emoji });
 }
 
+export function updateProjectIcon(projectId: string, icon: string | null) {
+  return sendNoContent(`/api/v1/projects/${encodeURIComponent(projectId)}`, "PATCH", { icon });
+}
+
 export function createInvite(
   projectId: string,
   input: { role: CreateInviteResult["role"]; email_hint?: string; expires_in_seconds?: number },
@@ -1026,7 +1042,7 @@ export function getProjectOverview(projectId: string) {
 }
 
 export function getGithubPullRequests(projectId: string) {
-  return getJson<GithubPullRequest[]>(`/api/v1/projects/${encodeURIComponent(projectId)}/integrations/github/pull-requests`);
+  return getJson<GithubPullRequestsResponse>(`/api/v1/projects/${encodeURIComponent(projectId)}/integrations/github/pull-requests`);
 }
 
 export function refreshGithubPullRequests(projectId: string, input: { repository: string; max_pull_requests?: number }) {

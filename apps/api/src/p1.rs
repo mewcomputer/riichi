@@ -6,6 +6,7 @@ use axum::{
 use axum_extra::extract::cookie::CookieJar;
 use serde::Deserialize;
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 use std::collections::HashSet;
 use uuid::Uuid;
 
@@ -118,6 +119,21 @@ pub(super) async fn create_template(
     if name.is_empty() || name.chars().count() > 100 || !request.snapshot.is_object() {
         return Err(ApiError::InvalidRequest);
     }
+    let parsed: TemplateIssueSnapshot =
+        serde_json::from_value(request.snapshot.clone()).map_err(|_| ApiError::InvalidRequest)?;
+    if parsed.status.as_deref().is_some_and(|status| {
+        ![
+            "triage",
+            "todo",
+            "in_progress",
+            "blocked",
+            "done",
+            "canceled",
+        ]
+        .contains(&status)
+    }) {
+        return Err(ApiError::InvalidRequest);
+    }
     Ok(Json(
         state
             .application
@@ -129,6 +145,7 @@ pub(super) async fn create_template(
 }
 
 #[derive(Debug, Deserialize, Default)]
+#[serde(deny_unknown_fields)]
 struct TemplateIssueSnapshot {
     title: Option<String>,
     body: Option<String>,
@@ -142,6 +159,7 @@ struct TemplateIssueSnapshot {
 #[derive(Debug, Deserialize)]
 pub(super) struct InstantiateTemplateRequest {
     title: Option<String>,
+    idempotency_key: String,
 }
 
 pub(super) async fn instantiate_template(
@@ -160,16 +178,32 @@ pub(super) async fn instantiate_template(
         .map_err(ApiError::from)?;
     let snapshot: TemplateIssueSnapshot =
         serde_json::from_value(template.snapshot).map_err(|_| ApiError::InvalidRequest)?;
+    if request.idempotency_key.trim().is_empty() || request.idempotency_key.chars().count() > 200 {
+        return Err(ApiError::InvalidRequest);
+    }
     let title = request
         .title
         .or(snapshot.title)
         .ok_or(ApiError::InvalidRequest)?;
-    let issue = state
+    let mut digest = Sha256::digest(
+        format!(
+            "template:{}:{}:{}",
+            project_id, template.id, request.idempotency_key
+        )
+        .as_bytes(),
+    );
+    digest[6] = (digest[6] & 0x0f) | 0x40;
+    digest[8] = (digest[8] & 0x3f) | 0x80;
+    let mut bytes = [0u8; 16];
+    bytes.copy_from_slice(&digest[..16]);
+    let issue_id = Uuid::from_bytes(bytes);
+    let issue_id = state
         .application
-        .create_issue(
+        .database()
+        .create_issue_with_metadata_and_template(
             project_id,
             riichi_persistence::IssueCreate {
-                id: Uuid::now_v7(),
+                id: issue_id,
                 display_key: String::new(),
                 title,
                 body: snapshot.body.unwrap_or_default(),
@@ -182,16 +216,17 @@ pub(super) async fn instantiate_template(
                 parent_issue_id: snapshot.parent_issue_id,
             },
             principal.account.id,
+            Some((template.id, template.version)),
         )
         .await
         .map_err(ApiError::from)?;
-    state
-        .application
-        .database()
-        .record_template_instance(issue.id, template.id, template.version)
-        .await
-        .map_err(ApiError::from)?;
-    Ok(Json(issue))
+    Ok(Json(
+        state
+            .application
+            .get_issue(project_id, issue_id)
+            .await
+            .map_err(ApiError::from)?,
+    ))
 }
 
 #[derive(Debug, Deserialize)]

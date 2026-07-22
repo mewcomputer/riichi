@@ -12,10 +12,12 @@ import {
   MoreHorizontal,
   Users,
   FileText,
-  type LucideIcon,
-} from "lucide-react";
+  type ProductIcon,
+} from "@/lib/product-icons";
 
 import { Button } from "@/components/ui/button";
+import { TeamMark } from "@/components/team/team-mark";
+import { ProjectMark } from "@/components/project/project-mark";
 import { Kbd } from "@/components/ui/kbd";
 import {
   Sidebar,
@@ -44,7 +46,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 
 export type ProjectNavItem = {
   label: string;
-  icon: LucideIcon;
+  icon: ProductIcon;
   to?: string;
   active?: boolean;
   badge?: string;
@@ -92,12 +94,14 @@ function TeamNavigationSection({
   activeProjectId,
   onProjectChange,
   onNavigate,
+  isCurrent,
 }: {
   team: NavigationResponse["organizations"][number]["teams"][number];
   organizationSlug: string;
   activeProjectId?: string;
   onProjectChange?: (projectId: string) => void;
   onNavigate?: (label: string) => void;
+  isCurrent?: boolean;
 }) {
   const [open, setOpen] = useState(true);
   const [projectsOpen, setProjectsOpen] = useState(true);
@@ -105,12 +109,12 @@ function TeamNavigationSection({
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <SidebarGroup className="-mt-2">
-        <div className="flex h-8 min-w-0 items-center gap-1 px-2 text-xs font-medium text-sidebar-foreground/70">
+      <SidebarGroup className="px-0 py-1">
+        <div className={`flex h-10 min-w-0 items-center gap-1 rounded-md px-2 text-sm font-medium ${isCurrent ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/80"}`}>
           <button type="button" className="flex min-w-0 flex-1 items-center gap-2 truncate text-left hover:text-sidebar-foreground" onClick={() => void navigate({ to: "/$organizationSlug/teams/$teamKey", params: { organizationSlug, teamKey: team.key } })}>
-            {team.emoji ? <span className="text-sm">{team.emoji}</span> : null}
+            <TeamMark value={team.emoji} className="size-4" />
             <span className="truncate">{team.name}</span>
-            <span className="ml-auto mr-1 shrink-0 font-normal text-sidebar-foreground/45 font-mono">{team.key}</span>
+            <span className="ml-auto mr-1 shrink-0 font-normal text-sidebar-foreground/45 font-mono text-xs">{team.key}</span>
           </button>
           <DropdownMenu>
             <DropdownMenuTrigger render={<Button variant="ghost" size="icon-xs" className="shrink-0 text-sidebar-foreground/50 hover:text-sidebar-foreground" aria-label={`${team.name} menu`} />}>
@@ -126,7 +130,7 @@ function TeamNavigationSection({
             <ChevronDown className={`size-3 transition-transform ${open ? "" : "-rotate-90"}`} />
           </CollapsibleTrigger>
         </div>
-        <CollapsibleContent>
+        <CollapsibleContent className="pl-4">
           <SidebarGroupContent>
             <SidebarMenu>
               <NavigationItem label="Issues" icon={Layers3} onClick={() => void navigate({ to: "/$organizationSlug/teams/$teamKey/issues", params: { organizationSlug, teamKey: team.key } })} />
@@ -150,7 +154,7 @@ function TeamNavigationSection({
                               void navigate({ to: "/$organizationSlug/projects/$projectId", params: { organizationSlug, projectId: project.id } });
                             }}
                           >
-                            <Folder />
+                            <ProjectMark value={project.icon} />
                             <span>{project.name}</span>
                           </SidebarMenuSubButton>
                         </SidebarMenuSubItem>
@@ -206,6 +210,7 @@ export function ProjectSidebar({
   const organizationName = navigation?.organizations[0]?.name ?? projectName;
   const organizationSlug = toOrganizationSlug(organizationName);
   const organizationLogoUrl = navigation?.organizations[0]?.logo_url;
+  const teams = (navigation?.organizations ?? []).flatMap((organization) => organization.teams);
   const navigateItem = (item: ProjectNavItem) => {
     onNavigate?.(item.label);
     if (item.to === "/") void navigate({ to: "/$organizationSlug/issues", params: { organizationSlug } });
@@ -258,43 +263,32 @@ export function ProjectSidebar({
       </SidebarHeader>
       <SidebarContent>
         {navSections.map((section, index) => (
-          <SidebarGroup
-            key={section.label ?? `section-${index}`}
-            className="py-2"
-          >
-            {section.label ? (
-              <SidebarGroupLabel>
-                {section.label}
-                <ChevronDown className="ml-0.5 size-3" />
-              </SidebarGroupLabel>
-            ) : null}
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {section.items.map((item) => (
-                  <NavigationItem key={item.label} {...item} isCurrent={item.to === "/" ? currentPath === `/${organizationSlug}/issues` : item.to ? currentPath === `/${organizationSlug}${item.to}` : false} onClick={() => navigateItem(item)} />
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
+          <div key={section.label ?? `section-${index}`}>
+            <SidebarGroup className="py-2">
+              {section.label ? (
+                <SidebarGroupLabel>
+                  {section.label}
+                  <ChevronDown className="ml-0.5 size-3" />
+                </SidebarGroupLabel>
+              ) : null}
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {section.items.map((item) => (
+                    <NavigationItem key={item.label} {...item} isCurrent={item.to === "/" ? currentPath === `/${organizationSlug}/issues` : item.to ? currentPath === `/${organizationSlug}${item.to}` : false} onClick={() => navigateItem(item)} />
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+            {index === 0 && teams.length > 0 ? <SidebarGroup className="py-2">
+              <SidebarGroupLabel>Teams</SidebarGroupLabel>
+              {teams.map((team) => <TeamNavigationSection key={team.id} team={team} organizationSlug={organizationSlug} activeProjectId={activeProjectId} onProjectChange={onProjectChange} onNavigate={onNavigate} isCurrent={currentPath.includes(`/teams/${team.key}`)} />)}
+            </SidebarGroup> : null}
+          </div>
         ))}
         {pinnedViews.length > 0 ? <SidebarGroup className="py-2">
           <SidebarGroupLabel>Pinned views</SidebarGroupLabel>
           <SidebarGroupContent><SidebarMenu>{pinnedViews.map((view) => <NavigationItem key={view.id} label={view.name} icon={ListFilter} onClick={() => onPinnedViewSelect?.(view)} />)}</SidebarMenu></SidebarGroupContent>
         </SidebarGroup> : null}
-        {(() => {
-          const teams = (navigation?.organizations ?? []).flatMap((organization) => organization.teams);
-          if (teams.length === 0) return null;
-          return (
-            <>
-              <SidebarGroup className="pb-0">
-                <SidebarGroupLabel className="py-0">Your teams</SidebarGroupLabel>
-                {teams.map((team) => (
-                <TeamNavigationSection key={team.id} team={team} organizationSlug={organizationSlug} activeProjectId={activeProjectId} onProjectChange={onProjectChange} onNavigate={onNavigate} />
-                ))}
-              </SidebarGroup>
-            </>
-          );
-        })()}
       </SidebarContent>
       <SidebarSeparator />
       <SidebarFooter className="p-2">

@@ -1,12 +1,94 @@
 use super::*;
+use axum::response::{Html, IntoResponse, Response};
 
-pub(super) async fn login(State(state): State<AppState>) -> Result<Redirect, ApiError> {
+pub(super) async fn login(
+    State(state): State<AppState>,
+    Query(query): Query<CliLoginQuery>,
+) -> Result<Redirect, ApiError> {
     let auth = state.auth.as_ref().ok_or(ApiError::AuthNotConfigured)?;
+    let return_to = query
+        .return_to
+        .as_deref()
+        .filter(|value| value.starts_with('/') && !value.starts_with("//"))
+        .unwrap_or("/");
     let authorization_url = auth
-        .begin_login(&state.application.database())
+        .begin_login_to(&state.application.database(), return_to)
         .await
         .map_err(ApiError::from)?;
     Ok(Redirect::to(authorization_url.as_str()))
+}
+
+pub(super) async fn create_cli_login(
+    State(state): State<AppState>,
+) -> Result<Json<CliLoginStartResponse>, ApiError> {
+    let token = Uuid::new_v4().to_string();
+    state
+        .application
+        .database()
+        .create_cli_login_handoff(&token, chrono::Duration::minutes(10))
+        .await
+        .map_err(ApiError::from)?;
+    Ok(Json(CliLoginStartResponse {
+        token: token.clone(),
+        login_url: format!("/auth/cli-login/{token}"),
+    }))
+}
+
+pub(super) async fn complete_cli_login(
+    State(state): State<AppState>,
+    Path(token): Path<String>,
+    jar: CookieJar,
+) -> Result<Response, ApiError> {
+    let auth = state.auth.as_ref().ok_or(ApiError::AuthNotConfigured)?;
+    if jar.get(auth.cookie_name()).is_none() {
+        return Ok(
+            Redirect::to(&format!("/auth/login?return_to=/auth/cli-login/{token}")).into_response(),
+        );
+    }
+    let principal = human_principal(&state, &jar).await?;
+    if !state
+        .application
+        .database()
+        .complete_cli_login_handoff(&token, principal.account.id)
+        .await
+        .map_err(ApiError::from)?
+    {
+        return Err(ApiError::NotFound);
+    }
+    Ok(Html("<h1>riichi login complete</h1><p>return to your terminal.</p>").into_response())
+}
+
+pub(super) async fn exchange_cli_login(
+    State(state): State<AppState>,
+    Path(token): Path<String>,
+) -> Result<(StatusCode, Json<CliLoginExchangeResponse>), ApiError> {
+    let Some(account_id) = state
+        .application
+        .database()
+        .exchange_cli_login_handoff(&token)
+        .await
+        .map_err(ApiError::from)?
+    else {
+        return Ok((
+            StatusCode::ACCEPTED,
+            Json(CliLoginExchangeResponse {
+                status: "pending".to_owned(),
+                session_token: None,
+            }),
+        ));
+    };
+    let auth = state.auth.as_ref().ok_or(ApiError::AuthNotConfigured)?;
+    let result = auth
+        .issue_session(&state.application.database(), account_id)
+        .await
+        .map_err(ApiError::from)?;
+    Ok((
+        StatusCode::OK,
+        Json(CliLoginExchangeResponse {
+            status: "complete".to_owned(),
+            session_token: Some(result.session_token),
+        }),
+    ))
 }
 
 pub(super) async fn callback(
@@ -82,6 +164,8 @@ pub(super) async fn human_me(
         account_id: principal.account.id,
         email: principal.account.email,
         display_name: principal.account.display_name,
+        last_completed_nux_version: principal.account.last_completed_nux_version,
+        last_completed_nux_at: principal.account.last_completed_nux_at,
         avatar_url: state
             .application
             .database()
@@ -109,6 +193,42 @@ pub(super) async fn human_me(
             })
             .collect(),
     }))
+}
+
+#[derive(Debug, Deserialize)]
+pub(super) struct CliLoginQuery {
+    return_to: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub(super) struct CliLoginStartResponse {
+    token: String,
+    login_url: String,
+}
+
+#[derive(Debug, Serialize)]
+pub(super) struct CliLoginExchangeResponse {
+    status: String,
+    session_token: Option<String>,
+}
+
+pub(super) async fn complete_nux(
+    State(state): State<AppState>,
+    jar: CookieJar,
+    Json(request): Json<CompleteNuxRequest>,
+) -> Result<StatusCode, ApiError> {
+    let principal = human_principal(&state, &jar).await?;
+    if request.version.trim().is_empty() || request.version.chars().count() > 100 {
+        return Err(ApiError::InvalidRequest);
+    }
+    state
+        .application
+        .database()
+        .complete_nux(principal.account.id, request.version.trim())
+        .await
+        .map_err(ApiError::from)?
+        .ok_or(ApiError::HumanUnauthenticated)?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 pub(super) async fn human_avatar(

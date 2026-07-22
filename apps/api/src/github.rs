@@ -1,5 +1,11 @@
 use super::*;
 
+#[derive(serde::Serialize)]
+pub(super) struct GithubPullRequestsResponse {
+    pub pull_requests: Vec<riichi_persistence::GithubPullRequest>,
+    pub truncated: bool,
+}
+
 pub(super) async fn github_webhook(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -263,17 +269,21 @@ pub(super) async fn github_pull_requests(
     State(state): State<AppState>,
     Path(project_id): Path<Uuid>,
     jar: CookieJar,
-) -> Result<Json<Vec<riichi_persistence::GithubPullRequest>>, ApiError> {
+) -> Result<Json<GithubPullRequestsResponse>, ApiError> {
     let principal = human_principal(&state, &jar).await?;
     require_viewer(&principal, project_id)?;
-    Ok(Json(
-        state
-            .application
-            .database()
-            .github_pull_requests(project_id, 100)
-            .await
-            .map_err(ApiError::from)?,
-    ))
+    let mut pull_requests = state
+        .application
+        .database()
+        .github_pull_requests(project_id, 101)
+        .await
+        .map_err(ApiError::from)?;
+    let truncated = pull_requests.len() > 100;
+    pull_requests.truncate(100);
+    Ok(Json(GithubPullRequestsResponse {
+        pull_requests,
+        truncated,
+    }))
 }
 
 pub(super) async fn link_github_pull_request(
@@ -288,7 +298,12 @@ pub(super) async fn link_github_pull_request(
         state
             .application
             .database()
-            .link_github_pull_request(project_id, pull_request_id, request.issue_id)
+            .link_github_pull_request(
+                project_id,
+                principal.account.id,
+                pull_request_id,
+                request.issue_id,
+            )
             .await
             .map_err(ApiError::from)?,
     ))

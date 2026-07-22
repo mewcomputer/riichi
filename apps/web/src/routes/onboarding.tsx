@@ -19,7 +19,7 @@ export function OnboardingPage() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
       void queryClient.invalidateQueries({ queryKey: ["navigation"] });
-      void navigate({ to: "/$organizationSlug/issues", params: { organizationSlug: toOrganizationSlug(navigationQuery.data?.organizations[0]?.name ?? "Riichi") }, search: { guide: "1" } as never, replace: true });
+      void navigate({ to: "/$organizationSlug/issues", params: { organizationSlug: toOrganizationSlug(navigationQuery.data?.organizations[0]?.name ?? "Riichi") }, replace: true });
     },
   });
 

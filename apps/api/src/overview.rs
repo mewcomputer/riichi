@@ -12,6 +12,7 @@ use crate::{ApiError, AppState, human_principal, require_viewer};
 pub(super) struct ProjectOverviewResponse {
     pub summary: riichi_persistence::ProjectOverviewSummary,
     pub issues: Vec<riichi_persistence::ProjectOverviewIssue>,
+    pub issues_truncated: bool,
     pub recent_changes: Vec<riichi_persistence::ProjectOverviewChange>,
 }
 
@@ -22,7 +23,7 @@ pub(super) async fn project_overview(
 ) -> Result<Json<ProjectOverviewResponse>, ApiError> {
     let principal = human_principal(&state, &jar).await?;
     require_viewer(&principal, project_id)?;
-    let (summary, issues, recent_changes) = state
+    let (summary, issues, issues_truncated, recent_changes) = state
         .application
         .database()
         .project_overview(project_id)
@@ -31,6 +32,7 @@ pub(super) async fn project_overview(
     Ok(Json(ProjectOverviewResponse {
         summary,
         issues,
+        issues_truncated,
         recent_changes,
     }))
 }

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronRight, FileText, Plus } from "lucide-react";
+import { ChevronRight, FileText, Plus } from "@/lib/product-icons";
 
 import type { DocumentRecord } from "@/lib/api";
 import { Button } from "@/components/ui/button";

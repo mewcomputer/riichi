@@ -43,6 +43,18 @@ pub struct ProjectOverviewChange {
     pub created_at: DateTime<Utc>,
 }
 
+const ISSUE_CATEGORY_SQL: &str = "CASE
+    WHEN i.status = 'blocked' OR d.unresolved_blocker_count > 0 THEN 'blocked'
+    WHEN NOT i.agent_eligible OR d.active_hold_count > 0 OR EXISTS (
+        SELECT 1 FROM approval_requests a WHERE a.issue_id = i.id AND a.state = 'pending'
+    ) THEN 'needs_human'
+    WHEN d.active_lease_id IS NOT NULL THEN 'agent_handling'
+    WHEN i.assignee_account_id IS NULL THEN 'unowned'
+    WHEN i.due_date BETWEEN current_date AND current_date + 7 THEN 'due_soon'
+    WHEN i.status = 'in_progress' THEN 'moving'
+    ELSE 'other'
+END";
+
 impl Database {
     pub async fn project_overview(
         &self,
@@ -51,57 +63,55 @@ impl Database {
         (
             ProjectOverviewSummary,
             Vec<ProjectOverviewIssue>,
+            bool,
             Vec<ProjectOverviewChange>,
         ),
         Error,
     > {
-        let summary = sqlx::query_as::<_, ProjectOverviewSummary>(
-            "SELECT $1 AS project_id,
+        let summary_sql = format!("WITH categorized AS (
+                 SELECT i.*, d.active_lease_id, d.unresolved_blocker_count, d.active_hold_count,
+                        l.expires_at, {ISSUE_CATEGORY_SQL} AS category
+                 FROM issues i
+                 JOIN issue_dispatch d ON d.issue_id = i.id
+                 LEFT JOIN leases l ON l.id = d.active_lease_id AND l.state = 'active'
+                 WHERE i.project_id = $1
+             )
+             SELECT $1 AS project_id,
                     count(*)::bigint AS total_issue_count,
-                    count(*) FILTER (WHERE i.status = 'in_progress')::bigint AS moving_count,
-                    count(*) FILTER (WHERE i.status = 'blocked' OR d.unresolved_blocker_count > 0)::bigint AS blocked_count,
-                    count(*) FILTER (WHERE NOT i.agent_eligible OR d.active_hold_count > 0 OR EXISTS (
-                        SELECT 1 FROM approval_requests a WHERE a.issue_id = i.id AND a.state = 'pending'
+                    count(*) FILTER (WHERE status = 'in_progress')::bigint AS moving_count,
+                    count(*) FILTER (WHERE status = 'blocked' OR unresolved_blocker_count > 0)::bigint AS blocked_count,
+                    count(*) FILTER (WHERE NOT agent_eligible OR active_hold_count > 0 OR EXISTS (
+                        SELECT 1 FROM approval_requests a WHERE a.issue_id = categorized.id AND a.state = 'pending'
                     ))::bigint AS needs_human_count,
-                    count(*) FILTER (WHERE d.active_lease_id IS NOT NULL)::bigint AS agent_handling_count,
-                    count(*) FILTER (WHERE l.expires_at <= now() + interval '24 hours')::bigint AS stale_lease_count,
+                    count(*) FILTER (WHERE active_lease_id IS NOT NULL)::bigint AS agent_handling_count,
+                    count(*) FILTER (WHERE expires_at <= now() + interval '24 hours')::bigint AS stale_lease_count,
                     (SELECT count(*)::bigint FROM approval_requests a WHERE a.project_id = $1 AND a.state = 'pending') AS pending_approval_count,
-                    count(*) FILTER (WHERE i.assignee_account_id IS NULL)::bigint AS unowned_count,
-                    count(*) FILTER (WHERE i.due_date BETWEEN current_date AND current_date + 7)::bigint AS due_soon_count
-             FROM issues i
-             JOIN issue_dispatch d ON d.issue_id = i.id
-             LEFT JOIN leases l ON l.id = d.active_lease_id AND l.state = 'active'
-             WHERE i.project_id = $1",
-        )
-        .bind(project_id)
-        .fetch_one(&self.pool)
-        .await?;
-        let issues = sqlx::query_as::<_, ProjectOverviewIssue>(
+                    count(*) FILTER (WHERE category = 'unowned')::bigint AS unowned_count,
+                    count(*) FILTER (WHERE due_date BETWEEN current_date AND current_date + 7)::bigint AS due_soon_count
+             FROM categorized") ;
+        let summary = sqlx::query_as::<_, ProjectOverviewSummary>(&summary_sql)
+            .bind(project_id)
+            .fetch_one(&self.pool)
+            .await?;
+        let issues_sql = format!(
             "SELECT i.id, i.display_key, i.title, i.status, i.importance,
                     i.assignee_account_id, d.active_lease_id, l.expires_at,
                     i.due_date, d.unresolved_blocker_count, d.active_hold_count,
-                    CASE
-                        WHEN i.status = 'blocked' OR d.unresolved_blocker_count > 0 THEN 'blocked'
-                        WHEN NOT i.agent_eligible OR d.active_hold_count > 0 OR EXISTS (
-                            SELECT 1 FROM approval_requests a WHERE a.issue_id = i.id AND a.state = 'pending'
-                        ) THEN 'needs_human'
-                        WHEN d.active_lease_id IS NOT NULL THEN 'agent_handling'
-                        WHEN i.assignee_account_id IS NULL THEN 'unowned'
-                        WHEN i.due_date BETWEEN current_date AND current_date + 7 THEN 'due_soon'
-                        WHEN i.status = 'in_progress' THEN 'moving'
-                        ELSE 'other'
-                    END AS category
+                    {ISSUE_CATEGORY_SQL} AS category
              FROM issues i
              JOIN issue_dispatch d ON d.issue_id = i.id
              LEFT JOIN leases l ON l.id = d.active_lease_id AND l.state = 'active'
              WHERE i.project_id = $1
              ORDER BY CASE WHEN i.status IN ('done', 'canceled') THEN 1 ELSE 0 END,
                       COALESCE(i.due_date, current_date + 3650), d.rank, i.id
-             LIMIT 200",
-        )
-        .bind(project_id)
-        .fetch_all(&self.pool)
-        .await?;
+             LIMIT 201"
+        );
+        let mut issues = sqlx::query_as::<_, ProjectOverviewIssue>(&issues_sql)
+            .bind(project_id)
+            .fetch_all(&self.pool)
+            .await?;
+        let issues_truncated = issues.len() > 200;
+        issues.truncate(200);
         let changes = sqlx::query_as::<_, ProjectOverviewChange>(
             "SELECT a.id, a.operation, a.target_id, i.display_key AS issue_display_key,
                     a.actor_id, a.change_summary, a.created_at
@@ -114,6 +124,6 @@ impl Database {
         .bind(project_id)
         .fetch_all(&self.pool)
         .await?;
-        Ok((summary, issues, changes))
+        Ok((summary, issues, issues_truncated, changes))
     }
 }

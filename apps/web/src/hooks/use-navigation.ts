@@ -41,9 +41,31 @@ export function useNavigation() {
   const replicated = collection?.isReady() && syncModule
     ? syncModule.navigationFromSyncRows(collection.toArray)
     : undefined;
+  const data = replicated && query.data
+    ? {
+        ...replicated,
+        organizations: replicated.organizations.map((organization) => {
+          const serverOrganization = query.data?.organizations.find((candidate) => candidate.id === organization.id);
+          return {
+            ...organization,
+            teams: organization.teams.map((team) => {
+              const serverTeam = serverOrganization?.teams.find((candidate) => candidate.id === team.id);
+              return {
+                ...team,
+                emoji: serverTeam ? serverTeam.emoji : team.emoji,
+                projects: team.projects.map((project) => {
+                  const serverProject = serverTeam?.projects.find((candidate) => candidate.id === project.id);
+                  return { ...project, icon: serverProject ? serverProject.icon : project.icon };
+                }),
+              };
+            }),
+          };
+        }),
+      }
+    : replicated ?? query.data;
 
   return {
     ...query,
-    data: replicated ?? query.data,
+    data,
   };
 }

@@ -1,10 +1,12 @@
 use hmac::{Hmac, KeyInit, Mac};
 use serde::Deserialize;
 use sha2::Sha256;
+use std::time::Duration;
 use thiserror::Error;
 
 const MAX_PAYLOAD_BYTES: usize = 256 * 1024;
 const MAX_IMPORT_ISSUES: usize = 1_000;
+const MAX_IMPORT_PULL_REQUESTS: usize = 100;
 const PAGE_SIZE: usize = 100;
 const ALLOWED_ACTIONS: [&str; 6] = [
     "opened",
@@ -89,7 +91,10 @@ impl GithubClient {
             return Err(ClientError::InvalidRepository);
         }
         Ok(Self {
-            http: reqwest::Client::new(),
+            http: reqwest::Client::builder()
+                .timeout(Duration::from_secs(15))
+                .build()
+                .map_err(ClientError::Request)?,
             base_url: base_url.trim_end_matches('/').to_owned(),
         })
     }
@@ -157,7 +162,7 @@ impl GithubClient {
         max_pull_requests: usize,
     ) -> Result<Vec<serde_json::Value>, ClientError> {
         validate_repository(repository)?;
-        if !(1..=MAX_IMPORT_ISSUES).contains(&max_pull_requests) {
+        if !(1..=MAX_IMPORT_PULL_REQUESTS).contains(&max_pull_requests) {
             return Err(ClientError::InvalidImportLimit);
         }
         let response = self
@@ -538,6 +543,12 @@ mod tests {
         assert!(matches!(
             client
                 .import_issues("acme/riichi", "token", MAX_IMPORT_ISSUES + 1)
+                .await,
+            Err(ClientError::InvalidImportLimit)
+        ));
+        assert!(matches!(
+            client
+                .import_pull_requests("acme/riichi", "token", MAX_IMPORT_PULL_REQUESTS + 1)
                 .await,
             Err(ClientError::InvalidImportLimit)
         ));

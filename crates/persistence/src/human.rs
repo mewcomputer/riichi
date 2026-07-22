@@ -1,6 +1,54 @@
 use super::*;
+use sha2::{Digest, Sha256};
 
 impl Database {
+    pub async fn create_cli_login_handoff(
+        &self,
+        token: &str,
+        lifetime: Duration,
+    ) -> Result<(), Error> {
+        let token_hash = Sha256::digest(token.as_bytes());
+        sqlx::query("DELETE FROM cli_login_handoffs WHERE expires_at <= now()")
+            .execute(&self.pool)
+            .await?;
+        sqlx::query("INSERT INTO cli_login_handoffs (token_hash, expires_at) VALUES ($1, now() + $2::interval)")
+            .bind(token_hash.as_slice())
+            .bind(format!("{} seconds", lifetime.num_seconds().max(1)))
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    pub async fn complete_cli_login_handoff(
+        &self,
+        token: &str,
+        account_id: Uuid,
+    ) -> Result<bool, Error> {
+        let token_hash = Sha256::digest(token.as_bytes());
+        let updated = sqlx::query("UPDATE cli_login_handoffs SET account_id = $2 WHERE token_hash = $1 AND expires_at > now() AND account_id IS NULL")
+            .bind(token_hash.as_slice())
+            .bind(account_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(updated.rows_affected() == 1)
+    }
+
+    pub async fn exchange_cli_login_handoff(&self, token: &str) -> Result<Option<Uuid>, Error> {
+        let token_hash = Sha256::digest(token.as_bytes());
+        let mut tx = self.pool.begin().await?;
+        let account_id = sqlx::query_scalar::<_, Uuid>("SELECT account_id FROM cli_login_handoffs WHERE token_hash = $1 AND expires_at > now() AND exchanged_at IS NULL FOR UPDATE")
+            .bind(token_hash.as_slice())
+            .fetch_optional(&mut *tx)
+            .await?;
+        if account_id.is_some() {
+            sqlx::query("UPDATE cli_login_handoffs SET exchanged_at = now() WHERE token_hash = $1")
+                .bind(token_hash.as_slice())
+                .execute(&mut *tx)
+                .await?;
+        }
+        tx.commit().await?;
+        Ok(account_id)
+    }
     pub async fn human_get_issue(
         &self,
         account_id: Uuid,
@@ -164,13 +212,32 @@ impl Database {
 
     pub async fn human_account(&self, account_id: Uuid) -> Result<Option<HumanAccount>, Error> {
         let account = sqlx::query_as::<_, HumanAccount>(
-            "SELECT id, issuer, subject, email, display_name
+            "SELECT id, issuer, subject, email, display_name,
+                    last_completed_nux_version, last_completed_nux_at
              FROM human_accounts WHERE id = $1",
         )
         .bind(account_id)
         .fetch_optional(&self.pool)
         .await?;
         Ok(account)
+    }
+
+    pub async fn complete_nux(
+        &self,
+        account_id: Uuid,
+        version: &str,
+    ) -> Result<Option<HumanAccount>, Error> {
+        Ok(sqlx::query_as::<_, HumanAccount>(
+            "UPDATE human_accounts
+             SET last_completed_nux_version = $2, last_completed_nux_at = now(), updated_at = now()
+             WHERE id = $1
+             RETURNING id, issuer, subject, email, display_name,
+                       last_completed_nux_version, last_completed_nux_at",
+        )
+        .bind(account_id)
+        .bind(version)
+        .fetch_optional(&self.pool)
+        .await?)
     }
 
     pub async fn create_project_membership(

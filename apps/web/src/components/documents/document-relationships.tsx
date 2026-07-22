@@ -1,9 +1,10 @@
 import { useMemo } from "react";
 import { useQueries, useQuery } from "@tanstack/react-query";
-import { Link2 } from "lucide-react";
+import { Link2 } from "@/lib/product-icons";
 
 import type { DocumentRecord, DocumentReference, HumanQueueIssue, NavigationResponse } from "@/lib/api";
 import { getAllIssues, getDocument } from "@/lib/api";
+import { teamMarkLabel } from "@/components/team/team-mark";
 
 type DocumentRelationshipsProps = {
   organizationSlug: string;
@@ -97,7 +98,7 @@ function resolveReference(
   const teams = navigation?.organizations.flatMap((organization) => organization.teams) ?? [];
   if (reference.resource_kind === "team") {
     const team = teams.find((candidate) => candidate.id === reference.resource_id);
-    return team ? { key, label: `${team.emoji ?? "◈"} ${team.name}`, href: `/${organizationSlug}/teams/${team.key}` } : null;
+    return team ? { key, label: `${teamMarkLabel(team.emoji)} ${team.name}`, href: `/${organizationSlug}/teams/${team.key}` } : null;
   }
   const projectScope = teams.flatMap((team) => team.projects.map((project) => ({ project, team }))).find(({ project }) => project.id === reference.resource_id);
   return projectScope ? { key, label: projectScope.project.name, href: `/${organizationSlug}/projects/${projectScope.project.id}` } : null;

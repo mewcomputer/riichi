@@ -25,6 +25,10 @@ impl Database {
         aliases: &[(String, String)],
     ) -> Result<Vec<models::WorkflowAliasRecord>, Error> {
         let mut tx = self.pool.begin().await?;
+        sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))")
+            .bind(format!("workflow-alias:{project_id}"))
+            .execute(&mut *tx)
+            .await?;
         let version = sqlx::query_scalar::<_, i64>(
             "INSERT INTO workflow_alias_versions (project_id, version, created_by)
              VALUES ($1, COALESCE((SELECT max(version) + 1 FROM workflow_alias_versions WHERE project_id = $1), 1), $2)

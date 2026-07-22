@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLiveQuery } from "@tanstack/react-db";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
-import { ArrowLeft, CircleDot, LoaderCircle } from "lucide-react";
+import { ArrowLeft, CircleDot, LoaderCircle } from "@/lib/product-icons";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

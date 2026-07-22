@@ -24,6 +24,8 @@ pub struct HumanAccount {
     pub subject: String,
     pub email: Option<String>,
     pub display_name: Option<String>,
+    pub last_completed_nux_version: Option<String>,
+    pub last_completed_nux_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone, FromRow)]

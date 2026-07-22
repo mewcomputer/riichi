@@ -11,6 +11,7 @@ import { useAppLogout } from "../hooks/use-app-logout";
 import { useActiveProject } from "../hooks/use-active-project";
 import { useNavigation } from "../hooks/use-navigation";
 import { useHumanDocuments } from "../hooks/use-human-documents";
+import { TeamMark } from "@/components/team/team-mark";
 import { organizationSlug as toOrganizationSlug } from "../lib/organization-slug";
 
 export function TeamResourcePage() {
@@ -63,11 +64,11 @@ export function TeamResourcePage() {
         view="all"
         views={[]}
         onViewChange={() => undefined}
-        content={<div className="flex min-w-0 items-center gap-2 text-xs"><span>{team.emoji ?? "◈"}</span><span className="truncate font-medium">{team.name}</span><span className="font-mono text-muted-foreground">{team.key}</span></div>}
+          content={<div className="flex min-w-0 items-center gap-2 text-xs"><TeamMark value={team.emoji} className="size-3.5" /><span className="truncate font-medium">{team.name}</span><span className="font-mono text-muted-foreground">{team.key}</span></div>}
       />
       <main className="mx-auto flex w-full max-w-screen-lg flex-col gap-8 px-8 py-10">
         <header className="grid gap-2">
-          <div className="flex items-center gap-3"><span className="grid size-10 place-items-center rounded-xl border border-border/70 bg-card text-xl">{team.emoji ?? "◈"}</span><div><h1 className="text-2xl font-medium tracking-tight">{team.name}</h1><p className="font-mono text-xs text-muted-foreground">{team.key}</p></div></div>
+          <div className="flex items-center gap-3"><span className="grid size-10 place-items-center rounded-xl border border-border/70 bg-card text-xl"><TeamMark value={team.emoji} className="size-5" /></span><div><h1 className="text-2xl font-medium tracking-tight">{team.name}</h1><p className="font-mono text-xs text-muted-foreground">{team.key}</p></div></div>
           <p className="max-w-xl text-sm text-muted-foreground">A shared home for this team’s issues, projects, and future documentation.</p>
         </header>
         <section className="grid gap-3 border-y border-border/60 py-6">

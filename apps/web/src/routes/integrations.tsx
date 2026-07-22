@@ -16,6 +16,7 @@ import { useNavigation } from "../hooks/use-navigation";
 export function IntegrationsPage() {
   const [repository, setRepository] = useState("");
   const [maxIssues, setMaxIssues] = useState("100");
+  const [maxPullRequests, setMaxPullRequests] = useState("50");
   const navigate = useNavigate();
   const { organizationSlug } = useParams({ from: "/$organizationSlug/integrations" });
   const appLogout = useAppLogout();
@@ -32,13 +33,13 @@ export function IntegrationsPage() {
     }),
   });
   const pullRequestMutation = useMutation({
-    mutationFn: () => refreshGithubPullRequests(projectId!, { repository: repository.trim(), max_pull_requests: Number(maxIssues) }),
+    mutationFn: () => refreshGithubPullRequests(projectId!, { repository: repository.trim(), max_pull_requests: Number(maxPullRequests) }),
   });
   const integrationMutation = useMutation({
     mutationFn: () => setGithubIntegration(projectId!, { repository: repository.trim(), enabled: true }),
     onSuccess: () => void integrationQuery.refetch(),
   });
-  const error = meQuery.error ?? importMutation.error ?? pullRequestMutation.error;
+  const error = meQuery.error ?? integrationMutation.error ?? importMutation.error ?? pullRequestMutation.error;
 
   return (
     <ProjectShell sidebar={<ProjectSidebar projectName={projectName} navigation={navigationQuery.data} memberships={meQuery.data?.memberships} activeProjectId={projectId} onProjectChange={selectProject} onLogout={appLogout} avatarUrl={meQuery.data?.avatar_url} onSearch={() => undefined} onNavigate={(label) => {
@@ -54,16 +55,21 @@ export function IntegrationsPage() {
           <p className="mt-1 text-sm text-muted-foreground">Import issue snapshots into this project. Pull requests are filtered out and external text stays untrusted.</p>
         </div>
         <section className="grid gap-4 border-y border-border/60 py-5">
-          <div className="flex items-end gap-2">
-            <label className="grid flex-1 gap-1.5 text-xs text-muted-foreground">Repository
-              <Input aria-label="GitHub repository" value={repository} onChange={(event) => setRepository(event.target.value)} placeholder="owner/repository" className="h-8 text-xs" />
+          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_7rem_7rem] sm:items-end">
+            <label className="grid min-w-0 gap-1.5 text-xs text-muted-foreground">Repository
+              <Input aria-label="GitHub repository" value={repository} onChange={(event) => setRepository(event.target.value)} placeholder="owner/repository" className="h-9 text-xs" />
             </label>
-            <label className="grid w-28 gap-1.5 text-xs text-muted-foreground">Max issues
-              <Input aria-label="Maximum issues" type="number" min="1" max="1000" value={maxIssues} onChange={(event) => setMaxIssues(event.target.value)} className="h-8 text-xs" />
+            <label className="grid gap-1.5 text-xs text-muted-foreground">Max issues
+              <Input aria-label="Maximum issues" type="number" min="1" max="1000" value={maxIssues} onChange={(event) => setMaxIssues(event.target.value)} className="h-9 text-xs" />
             </label>
-            <Button size="sm" variant="outline" onClick={() => integrationMutation.mutate()} disabled={integrationMutation.isPending || !repository.trim()}>Save integration</Button>
-            <Button size="sm" onClick={() => importMutation.mutate()} disabled={importMutation.isPending || pullRequestMutation.isPending || !repository.trim()}>Import</Button>
-            <Button size="sm" variant="outline" onClick={() => pullRequestMutation.mutate()} disabled={importMutation.isPending || pullRequestMutation.isPending || !repository.trim()}>Refresh PRs</Button>
+            <label className="grid gap-1.5 text-xs text-muted-foreground">Max PRs
+              <Input aria-label="Maximum pull requests" type="number" min="1" max="100" value={maxPullRequests} onChange={(event) => setMaxPullRequests(event.target.value)} className="h-9 text-xs" />
+            </label>
+          </div>
+          <div className="grid gap-2 sm:flex sm:flex-wrap sm:items-center">
+            <Button className="w-full sm:w-auto" size="sm" variant="outline" onClick={() => integrationMutation.mutate()} disabled={integrationMutation.isPending || !repository.trim()}>Save integration</Button>
+            <Button className="w-full sm:w-auto" size="sm" onClick={() => importMutation.mutate()} disabled={importMutation.isPending || pullRequestMutation.isPending || !repository.trim()}>Import issues</Button>
+            <Button className="w-full sm:w-auto" size="sm" variant="outline" onClick={() => pullRequestMutation.mutate()} disabled={importMutation.isPending || pullRequestMutation.isPending || !repository.trim()}>Refresh pull requests</Button>
           </div>
           {error ? <span className="text-xs text-destructive">{error instanceof ApiError && error.status === 401 ? "Sign in with an admin project membership." : error.message}</span> : null}
           {importMutation.data ? <div className="flex items-center gap-2 text-xs"><Badge variant="secondary">{importMutation.data.imported} imported</Badge><Badge variant="outline">{importMutation.data.pull_requests_skipped} pull requests skipped</Badge></div> : null}

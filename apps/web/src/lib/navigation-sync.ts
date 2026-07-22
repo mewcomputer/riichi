@@ -67,7 +67,7 @@ export function navigationFromSyncRows(rows: NavigationSyncRecord[]): Navigation
       teamByOrganization.set(teamKey, team);
       organization.teams.push(team);
     }
-    team.projects.push({ id: row.project_id, name: row.project_name, role: row.project_role });
+  team.projects.push({ id: row.project_id, name: row.project_name, icon: null, role: row.project_role });
   }
 
   organizations.sort((left, right) => left.name.localeCompare(right.name));

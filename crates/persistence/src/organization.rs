@@ -13,6 +13,7 @@ pub struct NavigationRow {
     pub team_emoji: Option<String>,
     pub project_id: Uuid,
     pub project_name: String,
+    pub project_icon: Option<String>,
     pub project_role: String,
 }
 
@@ -79,10 +80,11 @@ impl Database {
 
     pub async fn update_team_emoji(&self, team_id: Uuid, emoji: Option<&str>) -> Result<(), Error> {
         let normalized = emoji.map(str::trim).filter(|value| !value.is_empty());
-        if normalized.is_some_and(|value| value.chars().count() > 8 || value.contains(['\n', '\r']))
+        if normalized
+            .is_some_and(|value| value.chars().count() > 100 || value.contains(['\n', '\r']))
         {
             return Err(Error::InvalidIssue(
-                "team emoji must be at most 8 characters".to_owned(),
+                "team mark must be at most 100 characters".to_owned(),
             ));
         }
         let updated = sqlx::query("UPDATE teams SET emoji = $2 WHERE id = $1")
@@ -92,6 +94,45 @@ impl Database {
             .await?;
         if updated.rows_affected() == 0 {
             return Err(Error::InvalidIssue("team was not found".to_owned()));
+        }
+        Ok(())
+    }
+
+    pub async fn human_project_role(
+        &self,
+        account_id: Uuid,
+        project_id: Uuid,
+    ) -> Result<Option<String>, Error> {
+        Ok(sqlx::query_scalar(
+            "SELECT role FROM project_memberships
+             WHERE account_id = $1 AND project_id = $2 AND revoked_at IS NULL",
+        )
+        .bind(account_id)
+        .bind(project_id)
+        .fetch_optional(&self.pool)
+        .await?)
+    }
+
+    pub async fn update_project_icon(
+        &self,
+        project_id: Uuid,
+        icon: Option<&str>,
+    ) -> Result<(), Error> {
+        let normalized = icon.map(str::trim).filter(|value| !value.is_empty());
+        if normalized
+            .is_some_and(|value| value.chars().count() > 100 || value.contains(['\n', '\r']))
+        {
+            return Err(Error::InvalidIssue(
+                "project icon must be at most 100 characters".to_owned(),
+            ));
+        }
+        let updated = sqlx::query("UPDATE projects SET icon = $2 WHERE id = $1")
+            .bind(project_id)
+            .bind(normalized)
+            .execute(&self.pool)
+            .await?;
+        if updated.rows_affected() == 0 {
+            return Err(Error::InvalidIssue("project was not found".to_owned()));
         }
         Ok(())
     }
@@ -137,7 +178,7 @@ impl Database {
                     om.role AS organization_role,
                     (o.logo_bytes IS NOT NULL AND o.logo_content_type IS NOT NULL) AS organization_has_logo,
                     t.id AS team_id, t.name AS team_name, t.key AS team_key, t.emoji AS team_emoji,
-                    w.id AS project_id, w.name AS project_name,
+                    w.id AS project_id, w.name AS project_name, w.icon AS project_icon,
                     CASE
                         WHEN wt.role = 'admin' AND tm.role IN ('admin', 'owner') THEN 'admin'
                         WHEN wt.role = 'admin' AND tm.role = 'member' THEN 'member'
