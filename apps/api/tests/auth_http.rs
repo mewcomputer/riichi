@@ -295,6 +295,40 @@ async fn configured_api_supports_oidc_cookie_project_and_invite_round_trip() {
     assert!(!cookie_header.to_str().unwrap().contains("Secure"));
     let first_cookie = cookie_from_response(&callback);
 
+    let cli_login = app
+        .clone()
+        .oneshot(request(Method::POST, "/api/v1/auth/cli-login", ""))
+        .await
+        .unwrap();
+    assert_eq!(cli_login.status(), StatusCode::OK);
+    let cli_login_body: Value =
+        serde_json::from_slice(&cli_login.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    let cli_login_token = cli_login_body["token"].as_str().unwrap();
+    let mut complete_cli_login = Request::builder()
+        .method(Method::GET)
+        .uri(format!("/auth/cli-login/{cli_login_token}"))
+        .body(axum::body::Body::empty())
+        .unwrap();
+    complete_cli_login
+        .headers_mut()
+        .insert(header::COOKIE, first_cookie.clone());
+    let complete_cli_login_response = app.clone().oneshot(complete_cli_login).await.unwrap();
+    assert_eq!(complete_cli_login_response.status(), StatusCode::OK);
+    let exchanged = app
+        .clone()
+        .oneshot(request(
+            Method::POST,
+            &format!("/api/v1/auth/cli-login/{cli_login_token}/exchange"),
+            "",
+        ))
+        .await
+        .unwrap();
+    assert_eq!(exchanged.status(), StatusCode::OK);
+    let exchanged_body: Value =
+        serde_json::from_slice(&exchanged.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    assert_eq!(exchanged_body["status"], "complete");
+    assert!(exchanged_body["session_token"].as_str().is_some());
+
     let mut me = Request::builder()
         .method(Method::GET)
         .uri("/api/v1/auth/me")

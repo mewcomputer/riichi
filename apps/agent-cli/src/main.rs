@@ -2,11 +2,12 @@ use clap::{Parser, Subcommand};
 use reqwest::{Client, RequestBuilder, StatusCode};
 use serde_json::{Value, json};
 use std::process::Command as ProcessCommand;
-use std::time::Duration;
-use tokio::io::{AsyncBufReadExt, BufReader};
+use std::time::{Duration, Instant};
 use uuid::Uuid;
 
+mod mcp;
 mod profile;
+mod work;
 
 #[derive(Debug, Parser)]
 #[command(
@@ -39,6 +40,7 @@ struct Cli {
 #[derive(Debug, Subcommand)]
 enum Command {
     Login,
+    Logout,
     Whoami,
     Organization {
         #[command(subcommand)]
@@ -47,6 +49,10 @@ enum Command {
     Project {
         #[command(subcommand)]
         command: ProjectCommand,
+    },
+    Session {
+        #[command(subcommand)]
+        command: SessionCommand,
     },
     Profile {
         #[command(subcommand)]
@@ -111,13 +117,24 @@ enum Command {
 #[derive(Debug, Subcommand)]
 enum OrganizationCommand {
     List,
-    Use { organization_id: Uuid },
+    Use { organization: String },
 }
 
 #[derive(Debug, Subcommand)]
 enum ProjectCommand {
     List,
-    Use { project_id: Uuid },
+    Use { project: String },
+}
+
+#[derive(Debug, Subcommand)]
+enum SessionCommand {
+    Use {
+        session_id: Uuid,
+        #[arg(long)]
+        project_id: Option<Uuid>,
+        #[arg(long)]
+        token_stdin: bool,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -150,6 +167,40 @@ struct HumanClient {
     http: Client,
     base_url: String,
     token: String,
+    profile: profile::HumanProfile,
+}
+
+fn http_client() -> Result<Client, String> {
+    Client::builder()
+        .connect_timeout(Duration::from_secs(10))
+        .timeout(Duration::from_secs(15))
+        .build()
+        .map_err(|error| format!("could not configure HTTP client: {error}"))
+}
+
+fn select_navigation_id<'a, I>(values: I, selector: &str, kind: &str) -> Result<Uuid, String>
+where
+    I: IntoIterator<Item = &'a Value>,
+{
+    let matches: Vec<&str> = values
+        .into_iter()
+        .filter(|value| {
+            value.get("id").and_then(Value::as_str) == Some(selector)
+                || value.get("name").and_then(Value::as_str) == Some(selector)
+        })
+        .filter_map(|value| value.get("id").and_then(Value::as_str))
+        .collect();
+    match matches.as_slice() {
+        [id] => id
+            .parse()
+            .map_err(|_| format!("navigation returned an invalid {kind} ID")),
+        [] => Err(format!(
+            "{kind} '{selector}' is not accessible to this login"
+        )),
+        _ => Err(format!(
+            "{kind} selector '{selector}' is ambiguous; use its UUID"
+        )),
+    }
 }
 
 impl HumanClient {
@@ -170,6 +221,20 @@ impl HumanClient {
             return Err(format!("Riichi returned {status}: {body}"));
         }
         Ok(body)
+    }
+
+    async fn post_empty(&self, path: &str) -> Result<(), String> {
+        let response = self
+            .http
+            .post(format!("{}{}", self.base_url.trim_end_matches('/'), path))
+            .header("cookie", format!("riichi_session={}", self.token))
+            .send()
+            .await
+            .map_err(|error| error.to_string())?;
+        if !response.status().is_success() {
+            return Err(format!("Riichi returned {}", response.status()));
+        }
+        Ok(())
     }
 }
 
@@ -202,16 +267,6 @@ impl AgentClient {
     }
 }
 
-async fn call_tool(client: &AgentClient, name: &str, arguments: Value) -> Result<Value, String> {
-    match name {
-        "ready" => client.call("/api/v1/ready", arguments).await,
-        "claim" => client.call("/api/v1/claim", arguments).await,
-        "context" => client.call("/api/v1/context", arguments).await,
-        "report" => client.call("/api/v1/report/batch", arguments).await,
-        _ => Err(format!("unknown Riichi tool: {name}")),
-    }
-}
-
 async fn resolve_issue_id(client: &AgentClient, value: &str) -> Result<Uuid, String> {
     if let Ok(issue_id) = value.parse() {
         return Ok(issue_id);
@@ -226,151 +281,12 @@ async fn resolve_issue_id(client: &AgentClient, value: &str) -> Result<Uuid, Str
         .ok_or_else(|| format!("issue '{value}' was not found in the selected project"))
 }
 
-async fn run_mcp(client: AgentClient) -> Result<(), String> {
-    let mut lines = BufReader::new(tokio::io::stdin()).lines();
-    while let Some(line) = lines.next_line().await.map_err(|error| error.to_string())? {
-        let request: Value = serde_json::from_str(&line).map_err(|error| error.to_string())?;
-        let id = request.get("id").cloned().unwrap_or(Value::Null);
-        let response = match request.get("method").and_then(Value::as_str) {
-            Some("initialize") => json!({
-                "jsonrpc": "2.0",
-                "id": id,
-                "result": {"protocolVersion": "2024-11-05", "serverInfo": {"name": "riichi-agent", "version": "0.1.0"}}
-            }),
-            Some("notifications/initialized") => continue,
-            Some("tools/list") => json!({
-                "jsonrpc": "2.0",
-                "id": id,
-                "result": {"tools": [
-                    {"name": "ready", "description": "List authoritative eligible work", "inputSchema": {"type": "object"}},
-                    {"name": "claim", "description": "Claim one issue with a lease", "inputSchema": {"type": "object"}},
-                    {"name": "context", "description": "Fetch bounded issue context", "inputSchema": {"type": "object"}},
-                    {"name": "report", "description": "Submit an idempotent report batch", "inputSchema": {"type": "object"}}
-                ]}
-            }),
-            Some("tools/call") => {
-                let params = request.get("params").cloned().unwrap_or_default();
-                let name = params
-                    .get("name")
-                    .and_then(Value::as_str)
-                    .unwrap_or_default();
-                let arguments = params
-                    .get("arguments")
-                    .cloned()
-                    .unwrap_or_else(|| json!({}));
-                match call_tool(&client, name, arguments).await {
-                    Ok(result) => {
-                        json!({"jsonrpc": "2.0", "id": id, "result": {"content": [{"type": "text", "text": result.to_string()}]}})
-                    }
-                    Err(error) => {
-                        json!({"jsonrpc": "2.0", "id": id, "error": {"code": -32000, "message": error}})
-                    }
-                }
-            }
-            Some(method) => {
-                json!({"jsonrpc": "2.0", "id": id, "error": {"code": -32601, "message": format!("unknown method: {method}")}})
-            }
-            None => {
-                json!({"jsonrpc": "2.0", "id": id, "error": {"code": -32600, "message": "invalid JSON-RPC request"}})
-            }
-        };
-        println!("{}", response);
-    }
-    Ok(())
-}
-
-async fn run_work(client: &AgentClient, limit: i64) -> Result<(), String> {
-    let ready = client
-        .call("/api/v1/ready", json!({"limit": limit}))
-        .await?;
-    let issues = ready
-        .get("issues")
-        .and_then(Value::as_array)
-        .ok_or_else(|| "ready response did not contain issues".to_owned())?;
-    if issues.is_empty() {
-        println!("no eligible work");
-        return Ok(());
-    }
-    println!("eligible work:");
-    for (index, issue) in issues.iter().enumerate() {
-        println!(
-            "  {}. {:<12} {}",
-            index + 1,
-            issue
-                .get("display_key")
-                .and_then(Value::as_str)
-                .unwrap_or("?"),
-            issue
-                .get("title")
-                .and_then(Value::as_str)
-                .unwrap_or("(untitled)")
-        );
-    }
-    println!("choose an issue number, or press enter to cancel:");
-    let mut selection = String::new();
-    std::io::stdin()
-        .read_line(&mut selection)
-        .map_err(|error| error.to_string())?;
-    let selection = selection.trim();
-    if selection.is_empty() {
-        return Ok(());
-    }
-    let index: usize = selection
-        .parse()
-        .map_err(|_| "please enter an issue number".to_owned())?;
-    let issue = issues
-        .get(
-            index
-                .checked_sub(1)
-                .ok_or_else(|| "issue number must be positive".to_owned())?,
-        )
-        .ok_or_else(|| "that issue number is out of range".to_owned())?;
-    let issue_id = issue
-        .get("id")
-        .and_then(Value::as_str)
-        .ok_or_else(|| "ready issue did not contain an ID".to_owned())?;
-    let claim = client.call("/api/v1/claim", json!({"issue_id": issue_id, "idempotency_key": format!("riichi-cli-work-{}", Uuid::new_v4()), "requested_ttl_seconds": 1800})).await?;
-    println!(
-        "claimed {}",
-        claim
-            .get("lease_id")
-            .and_then(Value::as_str)
-            .unwrap_or("(unknown lease)")
-    );
-    println!("report action: [c]omplete, [r]elease, or [s]top");
-    let mut action = String::new();
-    std::io::stdin()
-        .read_line(&mut action)
-        .map_err(|error| error.to_string())?;
-    let lease_id = claim
-        .get("lease_id")
-        .and_then(Value::as_str)
-        .ok_or_else(|| "claim response did not contain a lease ID".to_owned())?;
-    let fencing_token = claim
-        .get("fencing_token")
-        .and_then(Value::as_i64)
-        .ok_or_else(|| "claim response did not contain a fencing token".to_owned())?;
-    match action.trim().to_ascii_lowercase().as_str() {
-        "c" | "complete" => {
-            let mut summary = String::new();
-            println!("resolution summary:");
-            std::io::stdin()
-                .read_line(&mut summary)
-                .map_err(|error| error.to_string())?;
-            client.call("/api/v1/report/batch", json!({"lease_id": lease_id, "fencing_token": fencing_token, "idempotency_key": format!("riichi-cli-work-report-{}", Uuid::new_v4()), "operations": [{"type": "complete", "resolution_summary": summary.trim()}]})).await?;
-            println!("reported complete");
-        }
-        "r" | "release" => {
-            client.call("/api/v1/report/batch", json!({"lease_id": lease_id, "fencing_token": fencing_token, "idempotency_key": format!("riichi-cli-work-report-{}", Uuid::new_v4()), "operations": [{"type": "release"}]})).await?;
-            println!("released lease");
-        }
-        _ => println!("left lease active; renew or report it before expiry"),
-    }
-    Ok(())
-}
-
 fn resolve_profile(cli: &Cli) -> Result<AgentClient, String> {
-    let stored = profile::get(&cli.profile).ok();
+    let stored = match profile::get(&cli.profile) {
+        Ok(value) => Some(value),
+        Err(error) if error.contains("does not exist") => None,
+        Err(error) => return Err(error),
+    };
     let project_id = cli
         .project_id
         .or(stored.as_ref().map(|(value, _)| value.project_id))
@@ -401,7 +317,7 @@ fn resolve_profile(cli: &Cli) -> Result<AgentClient, String> {
             .unwrap_or_else(|| cli.base_url.clone())
     };
     Ok(AgentClient {
-        http: Client::new(),
+        http: http_client()?,
         base_url,
         project_id,
         session_id,
@@ -444,7 +360,7 @@ fn print_result(value: &Value, json_output: bool) -> Result<(), String> {
 }
 
 async fn run_human_login(base_url: &str, profile_name: &str) -> Result<(), String> {
-    let http = Client::new();
+    let http = http_client()?;
     let response = http
         .post(format!(
             "{}/api/v1/auth/cli-login",
@@ -453,6 +369,12 @@ async fn run_human_login(base_url: &str, profile_name: &str) -> Result<(), Strin
         .send()
         .await
         .map_err(|error| error.to_string())?;
+    if !response.status().is_success() {
+        return Err(format!(
+            "Riichi returned {} while starting login",
+            response.status()
+        ));
+    }
     let start = response
         .json::<Value>()
         .await
@@ -474,20 +396,27 @@ async fn run_human_login(base_url: &str, profile_name: &str) -> Result<(), Strin
     if !opened {
         println!("open this URL in your browser to authenticate:\n{login_url}");
     }
-    for _ in 0..150 {
+    let deadline = Instant::now() + Duration::from_secs(300);
+    while Instant::now() < deadline {
         tokio::time::sleep(Duration::from_secs(2)).await;
-        let response = http
+        let response = match http
             .post(format!(
                 "{}/api/v1/auth/cli-login/{token}/exchange",
                 base_url.trim_end_matches('/')
             ))
             .send()
             .await
-            .map_err(|error| error.to_string())?;
-        let body = response
-            .json::<Value>()
-            .await
-            .map_err(|error| error.to_string())?;
+        {
+            Ok(response) => response,
+            Err(_) => continue,
+        };
+        if !response.status().is_success() && response.status() != StatusCode::ACCEPTED {
+            continue;
+        }
+        let body = match response.json::<Value>().await {
+            Ok(body) => body,
+            Err(_) => continue,
+        };
         if body.get("status").and_then(Value::as_str) == Some("complete") {
             let session_token = body
                 .get("session_token")
@@ -512,56 +441,87 @@ async fn run_human_login(base_url: &str, profile_name: &str) -> Result<(), Strin
 fn human_client(profile_name: &str) -> Result<HumanClient, String> {
     let (profile, token) = profile::load_human(profile_name)?;
     Ok(HumanClient {
-        http: Client::new(),
-        base_url: profile.base_url,
+        http: http_client()?,
+        base_url: profile.base_url.clone(),
         token,
+        profile,
     })
 }
 
 async fn run_human_command(cli: &Cli, command: &Command) -> Result<(), String> {
     let client = human_client(&cli.profile)?;
-    let value = client.get("/api/v1/navigation").await?;
     match command {
         Command::Whoami => print_result(&client.get("/api/v1/auth/me").await?, cli.json),
         Command::Organization {
             command: OrganizationCommand::List,
         } => {
-            for organization in value
+            let value = client.get("/api/v1/navigation").await?;
+            let organizations: Vec<&Value> = value
                 .get("organizations")
                 .and_then(Value::as_array)
                 .into_iter()
                 .flatten()
-            {
+                .collect();
+            if cli.json {
                 println!(
-                    "{}\t{}",
-                    organization
-                        .get("id")
-                        .and_then(Value::as_str)
-                        .unwrap_or("?"),
-                    organization
-                        .get("name")
-                        .and_then(Value::as_str)
-                        .unwrap_or("?")
+                    "{}",
+                    serde_json::to_string_pretty(&organizations)
+                        .map_err(|error| error.to_string())?
                 );
+            } else {
+                for organization in organizations {
+                    println!(
+                        "{}\t{}",
+                        organization
+                            .get("id")
+                            .and_then(Value::as_str)
+                            .unwrap_or("?"),
+                        organization
+                            .get("name")
+                            .and_then(Value::as_str)
+                            .unwrap_or("?")
+                    );
+                }
             }
             Ok(())
         }
         Command::Organization {
-            command: OrganizationCommand::Use { organization_id },
+            command: OrganizationCommand::Use { organization },
         } => {
-            profile::update_human_context(&cli.profile, Some(*organization_id), None)?;
-            println!("selected organization {organization_id}");
+            let value = client.get("/api/v1/navigation").await?;
+            let organization_id = select_navigation_id(
+                value
+                    .get("organizations")
+                    .and_then(Value::as_array)
+                    .into_iter()
+                    .flatten(),
+                organization,
+                "organization",
+            )?;
+            profile::update_human_context(&cli.profile, Some(organization_id), None)?;
+            if cli.json {
+                println!("{}", json!({"organization_id": organization_id}));
+            } else {
+                println!("selected organization {organization_id}");
+            }
             Ok(())
         }
         Command::Project {
             command: ProjectCommand::List,
         } => {
-            for organization in value
+            let value = client.get("/api/v1/navigation").await?;
+            let organizations = value
                 .get("organizations")
                 .and_then(Value::as_array)
                 .into_iter()
                 .flatten()
-            {
+                .filter(|organization| {
+                    client.profile.organization_id.is_none_or(|id| {
+                        organization.get("id").and_then(Value::as_str) == Some(&id.to_string())
+                    })
+                });
+            let mut projects: Vec<(String, String, String)> = Vec::new();
+            for organization in organizations {
                 for team in organization
                     .get("teams")
                     .and_then(Value::as_array)
@@ -574,22 +534,81 @@ async fn run_human_command(cli: &Cli, command: &Command) -> Result<(), String> {
                         .into_iter()
                         .flatten()
                     {
-                        println!(
-                            "{}\t{}\t{}",
-                            project.get("id").and_then(Value::as_str).unwrap_or("?"),
-                            team.get("key").and_then(Value::as_str).unwrap_or("?"),
-                            project.get("name").and_then(Value::as_str).unwrap_or("?")
-                        );
+                        projects.push((
+                            project
+                                .get("id")
+                                .and_then(Value::as_str)
+                                .unwrap_or("?")
+                                .to_owned(),
+                            team.get("key")
+                                .and_then(Value::as_str)
+                                .unwrap_or("?")
+                                .to_owned(),
+                            project
+                                .get("name")
+                                .and_then(Value::as_str)
+                                .unwrap_or("?")
+                                .to_owned(),
+                        ));
                     }
+                }
+            }
+            if let Some(selected_project) = client.profile.project_id {
+                let selected_project = selected_project.to_string();
+                projects.sort_by_key(|(id, _, _)| if id == &selected_project { 0 } else { 1 });
+            }
+            if cli.json {
+                let rows: Vec<Value> = projects.iter().map(|(id, team_key, name)| {
+                    json!({"id": id, "team_key": team_key, "name": name})
+                }).collect();
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&rows).map_err(|error| error.to_string())?
+                );
+            } else {
+                for (id, team_key, name) in projects {
+                    println!("{id}\t{team_key}\t{name}");
                 }
             }
             Ok(())
         }
         Command::Project {
-            command: ProjectCommand::Use { project_id },
+            command: ProjectCommand::Use { project },
         } => {
-            profile::update_human_context(&cli.profile, None, Some(*project_id))?;
-            println!("selected project {project_id}");
+            let value = client.get("/api/v1/navigation").await?;
+            let project_id = select_navigation_id(
+                value
+                    .get("organizations")
+                    .and_then(Value::as_array)
+                    .into_iter()
+                    .flatten()
+                    .filter(|organization| {
+                        client.profile.organization_id.is_none_or(|id| {
+                            organization.get("id").and_then(Value::as_str) == Some(&id.to_string())
+                        })
+                    })
+                    .flat_map(|organization| {
+                        organization
+                            .get("teams")
+                            .and_then(Value::as_array)
+                            .into_iter()
+                            .flatten()
+                    })
+                    .flat_map(|team| {
+                        team.get("projects")
+                            .and_then(Value::as_array)
+                            .into_iter()
+                            .flatten()
+                    }),
+                project,
+                "project",
+            )?;
+            profile::update_human_context(&cli.profile, None, Some(project_id))?;
+            if cli.json {
+                println!("{}", json!({"project_id": project_id}));
+            } else {
+                println!("selected project {project_id}");
+            }
             Ok(())
         }
         _ => unreachable!("only human commands are routed here"),
@@ -601,6 +620,42 @@ async fn main() -> Result<(), String> {
     let cli = Cli::parse();
     match &cli.command {
         Command::Login => return run_human_login(&cli.base_url, &cli.profile).await,
+        Command::Logout => {
+            let client = human_client(&cli.profile)?;
+            client.post_empty("/auth/logout").await?;
+            profile::clear_human(&cli.profile)?;
+            println!("logged out of profile '{}'", cli.profile);
+            return Ok(());
+        }
+        Command::Session {
+            command:
+                SessionCommand::Use {
+                    session_id,
+                    project_id,
+                    token_stdin,
+                },
+        } => {
+            let (stored, existing_token) = profile::get(&cli.profile)?;
+            let token = if *token_stdin {
+                profile::read_token_from_stdin()?
+            } else {
+                existing_token
+            };
+            profile::set(
+                cli.profile.clone(),
+                profile::Profile {
+                    base_url: stored.base_url,
+                    project_id: project_id.unwrap_or(stored.project_id),
+                    session_id: *session_id,
+                },
+                token,
+            )?;
+            println!(
+                "selected session {session_id} for profile '{}'",
+                cli.profile
+            );
+            return Ok(());
+        }
         Command::Whoami | Command::Organization { .. } | Command::Project { .. } => {
             return run_human_command(&cli, &cli.command).await;
         }
@@ -659,7 +714,7 @@ async fn main() -> Result<(), String> {
             if let Some(comment) = comment { operations.insert(0, json!({"type": "comment", "body": comment})); }
             client.call("/api/v1/report/batch", json!({"lease_id": lease_id, "fencing_token": fencing_token, "idempotency_key": idempotency_key.unwrap_or_else(|| format!("riichi-cli-{}", Uuid::new_v4())), "operations": operations})).await
         }
-        Command::Work { limit } => return run_work(&client, limit).await,
+        Command::Work { limit } => return work::run(&client, limit).await,
         Command::Report { lease_id, fencing_token, idempotency_key, operations } => {
             let operations: Value = serde_json::from_str(&operations).map_err(|error| error.to_string())?;
             client.call(
@@ -667,9 +722,9 @@ async fn main() -> Result<(), String> {
                 json!({"lease_id": lease_id, "fencing_token": fencing_token, "idempotency_key": idempotency_key, "operations": operations}),
             ).await
         }
-        Command::Mcp => return run_mcp(client).await,
+        Command::Mcp => return mcp::run(client).await,
         Command::Profile { .. } => unreachable!("profile commands are handled before client resolution"),
-        Command::Login | Command::Whoami | Command::Organization { .. } | Command::Project { .. } => unreachable!("human commands are handled before agent client resolution"),
+        Command::Login | Command::Logout | Command::Whoami | Command::Organization { .. } | Command::Project { .. } | Command::Session { .. } => unreachable!("context commands are handled before agent client resolution"),
     }?;
     print_result(&result, cli.json)?;
     Ok(())

@@ -21,6 +21,7 @@ pub(super) async fn login(
 pub(super) async fn create_cli_login(
     State(state): State<AppState>,
 ) -> Result<Json<CliLoginStartResponse>, ApiError> {
+    state.auth.as_ref().ok_or(ApiError::AuthNotConfigured)?;
     let token = Uuid::new_v4().to_string();
     state
         .application
@@ -62,10 +63,11 @@ pub(super) async fn exchange_cli_login(
     State(state): State<AppState>,
     Path(token): Path<String>,
 ) -> Result<(StatusCode, Json<CliLoginExchangeResponse>), ApiError> {
+    let auth = state.auth.as_ref().ok_or(ApiError::AuthNotConfigured)?;
     let Some(account_id) = state
         .application
         .database()
-        .exchange_cli_login_handoff(&token)
+        .claim_cli_login_handoff(&token)
         .await
         .map_err(ApiError::from)?
     else {
@@ -77,11 +79,21 @@ pub(super) async fn exchange_cli_login(
             }),
         ));
     };
-    let auth = state.auth.as_ref().ok_or(ApiError::AuthNotConfigured)?;
-    let result = auth
+    let result = match auth
         .issue_session(&state.application.database(), account_id)
         .await
-        .map_err(ApiError::from)?;
+    {
+        Ok(result) => result,
+        Err(error) => {
+            state
+                .application
+                .database()
+                .release_cli_login_handoff(&token)
+                .await
+                .map_err(ApiError::from)?;
+            return Err(ApiError::from(error));
+        }
+    };
     Ok((
         StatusCode::OK,
         Json(CliLoginExchangeResponse {

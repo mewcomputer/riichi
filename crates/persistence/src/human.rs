@@ -33,7 +33,7 @@ impl Database {
         Ok(updated.rows_affected() == 1)
     }
 
-    pub async fn exchange_cli_login_handoff(&self, token: &str) -> Result<Option<Uuid>, Error> {
+    pub async fn claim_cli_login_handoff(&self, token: &str) -> Result<Option<Uuid>, Error> {
         let token_hash = Sha256::digest(token.as_bytes());
         let mut tx = self.pool.begin().await?;
         let account_id = sqlx::query_scalar::<_, Uuid>("SELECT account_id FROM cli_login_handoffs WHERE token_hash = $1 AND expires_at > now() AND exchanged_at IS NULL FOR UPDATE")
@@ -48,6 +48,15 @@ impl Database {
         }
         tx.commit().await?;
         Ok(account_id)
+    }
+
+    pub async fn release_cli_login_handoff(&self, token: &str) -> Result<(), Error> {
+        let token_hash = Sha256::digest(token.as_bytes());
+        sqlx::query("UPDATE cli_login_handoffs SET exchanged_at = NULL WHERE token_hash = $1 AND exchanged_at IS NOT NULL")
+            .bind(token_hash.as_slice())
+            .execute(&self.pool)
+            .await?;
+        Ok(())
     }
     pub async fn human_get_issue(
         &self,

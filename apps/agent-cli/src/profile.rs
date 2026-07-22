@@ -1,5 +1,9 @@
+use keyring::Entry;
 use serde::{Deserialize, Serialize};
-use std::{fs, io, path::PathBuf};
+use std::{
+    fs, io,
+    path::{Path, PathBuf},
+};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -7,11 +11,6 @@ pub struct Profile {
     pub base_url: String,
     pub project_id: Uuid,
     pub session_id: Uuid,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct Credentials {
-    token: String,
 }
 
 fn config_path() -> PathBuf {
@@ -27,13 +26,16 @@ fn config_path() -> PathBuf {
     PathBuf::from(".riichi/profiles.json")
 }
 
-fn credentials_path() -> PathBuf {
-    let path = config_path();
-    path.with_file_name("credentials.json")
+fn human_credential_entry(name: &str) -> Result<Entry, String> {
+    let account = format!("{}:{name}", config_path().display());
+    Entry::new("riichi-human", &account)
+        .map_err(|error| format!("could not access OS credential store: {error}"))
 }
 
-fn human_credentials_path() -> PathBuf {
-    config_path().with_file_name("human-credentials.json")
+fn agent_credential_entry(name: &str) -> Result<Entry, String> {
+    let account = format!("{}:{name}", config_path().display());
+    Entry::new("riichi-agent", &account)
+        .map_err(|error| format!("could not access OS credential store: {error}"))
 }
 
 fn human_profiles_path() -> PathBuf {
@@ -65,62 +67,44 @@ fn save_all(profiles: &std::collections::BTreeMap<String, Profile>) -> Result<()
             .map_err(|error| format!("could not create {}: {error}", parent.display()))?;
     }
     let bytes = serde_json::to_vec_pretty(profiles).map_err(|error| error.to_string())?;
-    fs::write(&path, bytes)
-        .map_err(|error| format!("could not write {}: {error}", path.display()))?;
+    atomic_write(&path, &bytes)
+}
+
+fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), String> {
+    let temp = path.with_extension(format!("tmp-{}", Uuid::new_v4()));
+    fs::write(&temp, bytes)
+        .map_err(|error| format!("could not write {}: {error}", temp.display()))?;
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(&path, fs::Permissions::from_mode(0o600))
+        fs::set_permissions(&temp, fs::Permissions::from_mode(0o600))
             .map_err(|error| error.to_string())?;
     }
-    Ok(())
-}
-
-fn load_credentials(name: &str) -> Result<String, String> {
-    let path = credentials_path();
-    let bytes =
-        fs::read(&path).map_err(|error| format!("could not read {}: {error}", path.display()))?;
-    let credentials: std::collections::BTreeMap<String, Credentials> =
-        serde_json::from_slice(&bytes)
-            .map_err(|error| format!("could not parse {}: {error}", path.display()))?;
-    credentials
-        .get(name)
-        .map(|value| value.token.clone())
-        .ok_or_else(|| format!("profile '{name}' has no stored token"))
+    #[cfg(windows)]
+    if path.exists() {
+        fs::remove_file(path)
+            .map_err(|error| format!("could not replace {}: {error}", path.display()))?;
+    }
+    fs::rename(&temp, path)
+        .map_err(|error| format!("could not replace {}: {error}", path.display()))
 }
 
 fn save_credential(name: String, token: String) -> Result<(), String> {
-    let path = credentials_path();
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)
-            .map_err(|error| format!("could not create {}: {error}", parent.display()))?;
-    }
-    let mut credentials: std::collections::BTreeMap<String, Credentials> = if path.exists() {
-        serde_json::from_slice(&fs::read(&path).map_err(|error| error.to_string())?)
-            .map_err(|error| error.to_string())?
-    } else {
-        Default::default()
-    };
-    credentials.insert(name, Credentials { token });
-    fs::write(
-        &path,
-        serde_json::to_vec_pretty(&credentials).map_err(|error| error.to_string())?,
-    )
-    .map_err(|error| error.to_string())?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(&path, fs::Permissions::from_mode(0o600))
-            .map_err(|error| error.to_string())?;
-    }
-    Ok(())
+    agent_credential_entry(&name)?
+        .set_password(&token)
+        .map_err(|error| format!("could not save agent credential in OS credential store: {error}"))
 }
 
 pub fn get(name: &str) -> Result<(Profile, String), String> {
     let profile = load_all()?.remove(name).ok_or_else(|| {
         format!("profile '{name}' does not exist; run `riichi-agent profile set`")
     })?;
-    Ok((profile, load_credentials(name)?))
+    let token = agent_credential_entry(name)?
+        .get_password()
+        .map_err(|error| {
+            format!("could not read agent credential from OS credential store: {error}")
+        })?;
+    Ok((profile, token))
 }
 
 pub fn list() -> Result<Vec<String>, String> {
@@ -130,8 +114,8 @@ pub fn list() -> Result<Vec<String>, String> {
 pub fn set(name: String, profile: Profile, token: String) -> Result<(), String> {
     let mut profiles = load_all()?;
     profiles.insert(name.clone(), profile);
-    save_all(&profiles)?;
-    save_credential(name, token)
+    save_credential(name, token)?;
+    save_all(&profiles)
 }
 
 pub fn read_token_from_stdin() -> Result<String, String> {
@@ -158,33 +142,15 @@ pub fn save_human(name: &str, profile: HumanProfile, token: String) -> Result<()
         Default::default()
     };
     profiles.insert(name.to_owned(), profile);
-    fs::write(
+    human_credential_entry(name)?
+        .set_password(&token)
+        .map_err(|error| {
+            format!("could not save human credential in OS credential store: {error}")
+        })?;
+    atomic_write(
         &profiles_path,
-        serde_json::to_vec_pretty(&profiles).map_err(|error| error.to_string())?,
+        &serde_json::to_vec_pretty(&profiles).map_err(|error| error.to_string())?,
     )
-    .map_err(|error| error.to_string())?;
-    let credentials_path = human_credentials_path();
-    let mut credentials: std::collections::BTreeMap<String, String> = if credentials_path.exists() {
-        serde_json::from_slice(&fs::read(&credentials_path).map_err(|error| error.to_string())?)
-            .map_err(|error| error.to_string())?
-    } else {
-        Default::default()
-    };
-    credentials.insert(name.to_owned(), token);
-    fs::write(
-        &credentials_path,
-        serde_json::to_vec_pretty(&credentials).map_err(|error| error.to_string())?,
-    )
-    .map_err(|error| error.to_string())?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(&profiles_path, fs::Permissions::from_mode(0o600))
-            .map_err(|error| error.to_string())?;
-        fs::set_permissions(&credentials_path, fs::Permissions::from_mode(0o600))
-            .map_err(|error| error.to_string())?;
-    }
-    Ok(())
 }
 
 pub fn load_human(name: &str) -> Result<(HumanProfile, String), String> {
@@ -192,18 +158,17 @@ pub fn load_human(name: &str) -> Result<(HumanProfile, String), String> {
     let profiles: std::collections::BTreeMap<String, HumanProfile> =
         serde_json::from_slice(&fs::read(&profiles_path).map_err(|error| error.to_string())?)
             .map_err(|error| error.to_string())?;
-    let credentials_path = human_credentials_path();
-    let credentials: std::collections::BTreeMap<String, String> =
-        serde_json::from_slice(&fs::read(&credentials_path).map_err(|error| error.to_string())?)
-            .map_err(|error| error.to_string())?;
+    let token = human_credential_entry(name)?
+        .get_password()
+        .map_err(|error| {
+            format!("could not read human credential from OS credential store: {error}")
+        })?;
     Ok((
         profiles
             .get(name)
             .cloned()
             .ok_or_else(|| format!("human profile '{name}' does not exist; run `riichi login`"))?,
-        credentials.get(name).cloned().ok_or_else(|| {
-            format!("human profile '{name}' is not logged in; run `riichi login`")
-        })?,
+        token,
     ))
 }
 
@@ -221,15 +186,36 @@ pub fn update_human_context(
         .ok_or_else(|| format!("human profile '{name}' does not exist"))?;
     if organization_id.is_some() {
         profile.organization_id = organization_id;
+        profile.project_id = None;
     }
     if project_id.is_some() {
         profile.project_id = project_id;
     }
-    fs::write(
+    atomic_write(
         &profiles_path,
-        serde_json::to_vec_pretty(&profiles).map_err(|error| error.to_string())?,
+        &serde_json::to_vec_pretty(&profiles).map_err(|error| error.to_string())?,
     )
-    .map_err(|error| error.to_string())
+}
+
+pub fn clear_human(name: &str) -> Result<(), String> {
+    match human_credential_entry(name)?.delete_credential() {
+        Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
+        Err(error) => Err(format!(
+            "could not clear human credential from OS credential store: {error}"
+        )),
+    }?;
+    let profiles_path = human_profiles_path();
+    if profiles_path.exists() {
+        let mut profiles: std::collections::BTreeMap<String, HumanProfile> =
+            serde_json::from_slice(&fs::read(&profiles_path).map_err(|error| error.to_string())?)
+                .map_err(|error| error.to_string())?;
+        profiles.remove(name);
+        atomic_write(
+            &profiles_path,
+            &serde_json::to_vec_pretty(&profiles).map_err(|error| error.to_string())?,
+        )?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]
