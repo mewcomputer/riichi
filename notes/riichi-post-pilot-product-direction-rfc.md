@@ -419,8 +419,10 @@ shows that the gap is planning rather than basic visibility or time semantics.
   issue selection still navigates to a full page, saved views are account-only,
   relationship state is concentrated in issue detail, and history lacks a
   stable human-readable event taxonomy.
-- [ ] Specify the project-scoped view schema, filter grammar, ownership, and
-  permissions.
+- [x] Specify the project-scoped view schema, filter grammar, ownership, and
+  permissions: project views retain the existing filter object, are visible to
+  project viewers, may be created by project members, and may be deleted by
+  their owner or a project admin.
 - [ ] Specify the history event projection and actor/session presentation.
 - [ ] Specify the duplicate-resolution command and deprecated-issue behavior.
 - [ ] Define P0 baselines and exit thresholds for navigation, blocker
@@ -430,7 +432,8 @@ shows that the gap is planning rather than basic visibility or time semantics.
 
 - [x] Ship the first issue peek slice: URL-addressable selection, queue-preserving
   `enter`/`esc` navigation, and explicit `e` expansion into the full issue page.
-- [ ] Ship shared and pinned project views.
+- [x] Ship project-shared views alongside personal views.
+- [ ] Add pinned sidebar views after shared-view reuse is measured.
 - [ ] Ship relationship visibility and duplicate resolution.
 - [ ] Ship readable history and version-checked compensating undo.
 

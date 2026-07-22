@@ -657,8 +657,18 @@
           "name": {
             "type": "string"
           },
+          "project_id": {
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "updated_at": {
             "format": "date-time",
+            "type": "string"
+          },
+          "visibility": {
             "type": "string"
           }
         },
@@ -1733,6 +1743,103 @@
           },
           "503": {
             "description": "Electric synchronization is not configured"
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/views": {
+      "get": {
+        "operationId": "listProjectSavedViews",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SavedView"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Project-scoped saved queue views"
+          }
+        }
+      },
+      "post": {
+        "operationId": "saveProjectView",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveViewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedView"
+                }
+              }
+            },
+            "description": "Project-scoped saved queue view"
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/views/{view_id}": {
+      "delete": {
+        "operationId": "deleteProjectSavedView",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "view_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Project-scoped saved queue view deleted"
           }
         }
       }

@@ -52,6 +52,8 @@ export type HumanQueueIssue = {
 export type SavedView = {
   id: string;
   account_id: string;
+  project_id: string | null;
+  visibility: "personal" | "project";
   name: string;
   filters: Record<string, unknown>;
   created_at: string;
@@ -427,12 +429,24 @@ export function getSavedViews() {
   return getJson<SavedView[]>('/api/v1/views');
 }
 
+export function getProjectSavedViews(projectId: string) {
+  return getJson<SavedView[]>(`/api/v1/projects/${encodeURIComponent(projectId)}/views`);
+}
+
 export function saveSavedView(name: string, filters: Record<string, unknown>) {
   return sendJson<SavedView>('/api/v1/views', 'POST', { name, filters });
 }
 
+export function saveProjectSavedView(projectId: string, name: string, filters: Record<string, unknown>) {
+  return sendJson<SavedView>(`/api/v1/projects/${encodeURIComponent(projectId)}/views`, "POST", { name, filters });
+}
+
 export function deleteSavedView(viewId: string) {
   return sendNoContent(`/api/v1/views/${encodeURIComponent(viewId)}`, 'DELETE');
+}
+
+export function deleteProjectSavedView(projectId: string, viewId: string) {
+  return sendNoContent(`/api/v1/projects/${encodeURIComponent(projectId)}/views/${encodeURIComponent(viewId)}`, "DELETE");
 }
 
 export function getPendingApprovals() {

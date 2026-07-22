@@ -7,7 +7,7 @@ import { Archive, CircleDot, ExternalLink, Layers3, UserRound, X } from "lucide-
 
 import { Kbd } from "@/components/ui/kbd";
 import { Button } from "@/components/ui/button";
-import { ApiError, createIssue, createOnboardingSample, deleteSavedView, getCurrentUser, getSavedViews, saveSavedView } from "@/lib/api";
+import { ApiError, createIssue, createOnboardingSample, deleteProjectSavedView, deleteSavedView, getCurrentUser, getProjectSavedViews, getSavedViews, saveProjectSavedView, saveSavedView } from "@/lib/api";
 import { addQueueLabel, matchesQueueAdvancedFilter, matchesQueueView, toQueueItem } from "../data/queue";
 import { useAllIssues } from "../hooks/use-all-issues";
 import { useTeamIssues } from "../hooks/use-team-issues";
@@ -110,6 +110,8 @@ export function QueuePage({ initialFilter = "all", initialView = "all", teamId, 
   const savedViewsQuery = useQuery({ queryKey: ["saved-views"], queryFn: getSavedViews, retry: false });
   const organizationSlug = organizationSlugProp ?? toOrganizationSlug(navigationQuery.data?.organizations[0]?.name ?? "Riichi");
   const { activeMembership, projectId, selectProject } = useActiveProject(meQuery.data?.memberships);
+  const projectSavedViewsQuery = useQuery({ queryKey: ["saved-views", "project", projectId], queryFn: () => getProjectSavedViews(projectId!), enabled: Boolean(projectId), retry: false });
+  const savedViews = useMemo(() => [...(projectSavedViewsQuery.data ?? []), ...(savedViewsQuery.data ?? [])], [projectSavedViewsQuery.data, savedViewsQuery.data]);
   const projectName = activeMembership?.project_name ?? "riichi";
   const allIssuesQuery = useAllIssues();
   const teamIssuesQuery = useTeamIssues(teamId ?? "");
@@ -131,12 +133,19 @@ export function QueuePage({ initialFilter = "all", initialView = "all", teamId, 
     },
   });
   const saveViewMutation = useMutation({
-    mutationFn: (name: string) => saveSavedView(name, serializeQueueSearch({ ...searchState, peekIssueId: undefined })),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["saved-views"] }),
+    mutationFn: ({ name, scope }: { name: string; scope: "project" | "personal" }) => {
+      const filters = serializeQueueSearch({ ...searchState, peekIssueId: undefined });
+      if (scope === "project") {
+        if (!projectId) throw new Error("No active project is available.");
+        return saveProjectSavedView(projectId, name, filters);
+      }
+      return saveSavedView(name, filters);
+    },
+    onSuccess: (_view, { scope }) => void queryClient.invalidateQueries({ queryKey: scope === "project" ? ["saved-views", "project", projectId] : ["saved-views"] }),
   });
   const deleteViewMutation = useMutation({
-    mutationFn: (viewId: string) => deleteSavedView(viewId),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["saved-views"] }),
+    mutationFn: (view: { id: string; visibility: "project" | "personal" }) => view.visibility === "project" && projectId ? deleteProjectSavedView(projectId, view.id) : deleteSavedView(view.id),
+    onSuccess: (_result, view) => void queryClient.invalidateQueries({ queryKey: view.visibility === "project" ? ["saved-views", "project", projectId] : ["saved-views"] }),
   });
   const sampleMutation = useMutation({
     mutationFn: () => {
@@ -413,7 +422,7 @@ export function QueuePage({ initialFilter = "all", initialView = "all", teamId, 
         view={view}
         views={queueViews}
         onViewChange={(nextView) => updateSearch({ view: nextView as QueueView })}
-        actions={<><QueueSavedViews views={savedViewsQuery.data ?? []} onApply={(savedView) => updateSearch(parseQueueSearch(savedView.filters), true)} onSave={(name) => saveViewMutation.mutate(name)} onDelete={(savedView) => deleteViewMutation.mutate(savedView.id)} /><QueueFilterMenu items={allItems} advancedFilter={advancedFilter} onAdvancedFilterChange={(nextFilter) => updateSearch({ advancedFilter: nextFilter })} /><QueueDisplayMenu showDetails={showDetails} onShowDetailsChange={(nextShowDetails) => updateSearch({ showDetails: nextShowDetails })} /></>}
+        actions={<><QueueSavedViews views={savedViews} onApply={(savedView) => updateSearch(parseQueueSearch(savedView.filters), true)} onSave={(name, scope) => saveViewMutation.mutate({ name, scope })} onDelete={(savedView) => deleteViewMutation.mutate(savedView)} /><QueueFilterMenu items={allItems} advancedFilter={advancedFilter} onAdvancedFilterChange={(nextFilter) => updateSearch({ advancedFilter: nextFilter })} /><QueueDisplayMenu showDetails={showDetails} onShowDetailsChange={(nextShowDetails) => updateSearch({ showDetails: nextShowDetails })} /></>}
       />
       <QueueToolbar
         query={query}

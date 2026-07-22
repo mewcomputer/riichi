@@ -29,11 +29,16 @@ export function QueueBulkResultSummary({ result, onDismiss }: { result: QueueBul
 export function QueueSavedViews({ views, onApply, onSave, onDelete }: {
   views: SavedView[];
   onApply: (view: SavedView) => void;
-  onSave: (name: string) => void;
+  onSave: (name: string, scope: "project" | "personal") => void;
   onDelete: (view: SavedView) => void;
 }) {
   const [open, setOpen] = React.useState(false);
   const [name, setName] = React.useState("");
+  const [scope, setScope] = React.useState<"project" | "personal">("project");
+  const beginSave = (nextScope: "project" | "personal") => {
+    setScope(nextScope);
+    setOpen(true);
+  };
   return <>
     <DropdownMenu>
       <DropdownMenuTrigger render={<Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-muted-foreground" aria-label="Saved views" />}>Views</DropdownMenuTrigger>
@@ -41,18 +46,19 @@ export function QueueSavedViews({ views, onApply, onSave, onDelete }: {
         <DropdownMenuLabel>Saved views</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {views.length ? views.map((view) => <div key={view.id} className="flex items-center gap-1 px-1">
-          <DropdownMenuItem className="min-w-0 flex-1" onClick={() => onApply(view)}><span className="truncate">{view.name}</span></DropdownMenuItem>
+          <DropdownMenuItem className="min-w-0 flex-1" onClick={() => onApply(view)}><span className="truncate">{view.name}</span><span className="ml-auto text-[10px] text-muted-foreground">{view.visibility}</span></DropdownMenuItem>
           <button type="button" className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground" aria-label={`Delete ${view.name}`} onClick={() => onDelete(view)}>×</button>
         </div>) : <p className="px-2 py-1.5 text-xs text-muted-foreground">No saved views yet.</p>}
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => setOpen(true)}>Save current filters…</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => beginSave("project")}>Save shared project view…</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => beginSave("personal")}>Save personal view…</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent>
-        <DialogHeader><DialogTitle>Save current filters</DialogTitle><DialogDescription>Give this queue view a name. It will be available on your account.</DialogDescription></DialogHeader>
-        <Input value={name} maxLength={80} autoFocus placeholder="e.g. urgent triage" onChange={(event) => setName(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && name.trim()) { onSave(name.trim()); setName(""); setOpen(false); } }} />
-        <DialogFooter><DialogClose render={<Button variant="outline" />}>Cancel</DialogClose><Button disabled={!name.trim()} onClick={() => { onSave(name.trim()); setName(""); setOpen(false); }}>Save view</Button></DialogFooter>
+        <DialogHeader><DialogTitle>Save current filters</DialogTitle><DialogDescription>{scope === "project" ? "This view will be shared with project members." : "This view will be available only on your account."}</DialogDescription></DialogHeader>
+        <Input value={name} maxLength={80} autoFocus placeholder="e.g. urgent triage" onChange={(event) => setName(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && name.trim()) { onSave(name.trim(), scope); setName(""); setOpen(false); } }} />
+        <DialogFooter><DialogClose render={<Button variant="outline" />}>Cancel</DialogClose><Button disabled={!name.trim()} onClick={() => { onSave(name.trim(), scope); setName(""); setOpen(false); }}>Save view</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   </>;
