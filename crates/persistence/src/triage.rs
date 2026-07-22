@@ -29,6 +29,7 @@ struct IssueAuditSnapshot {
     rank: i64,
     due_date: Option<chrono::NaiveDate>,
     snoozed_until: Option<chrono::NaiveDate>,
+    workflow_alias: Option<String>,
     labels: Vec<String>,
 }
 
@@ -176,6 +177,12 @@ fn issue_change_summary(
                 .push(serde_json::json!({ "field": "snoozed until", "from": from, "to": value }));
         }
     }
+    if let Some(value) = &update.workflow_alias {
+        let value = value.clone();
+        if value != snapshot.workflow_alias {
+            changes.push(serde_json::json!({ "field": "workflow label", "from": snapshot.workflow_alias, "to": value }));
+        }
+    }
     if let Some(value) = update.assignee_account_id
         && Some(value) != snapshot.assignee_account_id
     {
@@ -188,7 +195,7 @@ async fn refresh_blocker_count(
     tx: &mut Transaction<'_, Postgres>,
     issue_id: Uuid,
 ) -> Result<(), Error> {
-    sqlx::query(
+    let unresolved_count = sqlx::query_scalar::<_, i32>(
         "UPDATE issue_dispatch d
          SET unresolved_blocker_count = (
              SELECT count(*)::integer
@@ -203,8 +210,25 @@ async fn refresh_blocker_count(
          WHERE d.issue_id = $1",
     )
     .bind(issue_id)
-    .execute(&mut **tx)
+    .fetch_one(&mut **tx)
     .await?;
+    if unresolved_count > 0 {
+        sqlx::query(
+            "INSERT INTO notifications
+             (id, recipient_account_id, kind, project_id, issue_id, payload, dedupe_key)
+             SELECT gen_random_uuid(), s.account_id, 'assignment', i.project_id, i.id,
+                    jsonb_build_object('subscription_kind', 'blocked_dependency'),
+                    'subscription:blocked_dependency:' || i.id::text
+             FROM issues i
+             JOIN issue_subscriptions s ON s.project_id = i.project_id
+             WHERE i.id = $1 AND s.kind = 'blocked_dependency'
+               AND (s.issue_id IS NULL OR s.issue_id = i.id)
+             ON CONFLICT DO NOTHING",
+        )
+        .bind(issue_id)
+        .execute(&mut **tx)
+        .await?;
+    }
     Ok(())
 }
 
@@ -472,6 +496,8 @@ impl Database {
                     i.completed_at,
                     i.due_date,
                     i.snoozed_until,
+                    i.workflow_alias,
+                    i.workflow_alias_version,
                     d.rank,
                     d.rank_scope,
                     d.dispatch_version,
@@ -699,6 +725,25 @@ impl Database {
 
         let status_changed = update.status.is_some();
         let mut tx = self.pool.begin().await?;
+        if let Some(Some(label)) = &update.workflow_alias {
+            let valid = sqlx::query_scalar::<_, bool>(
+                "SELECT EXISTS (
+                     SELECT 1 FROM workflow_aliases a
+                     WHERE a.project_id = $1
+                       AND a.version = (SELECT max(version) FROM workflow_alias_versions WHERE project_id = $1)
+                       AND a.label = $2
+                 )",
+            )
+            .bind(project_id)
+            .bind(label)
+            .fetch_one(&mut *tx)
+            .await?;
+            if !valid {
+                return Err(PersistenceError::InvalidIssue(
+                    "workflow label is not configured".to_owned(),
+                ));
+            }
+        }
         let snapshot = sqlx::query_as::<_, IssueAuditSnapshot>(
             "SELECT i.title,
                     i.status,
@@ -709,6 +754,7 @@ impl Database {
                     d.rank,
                     i.due_date,
                     i.snoozed_until,
+                    i.workflow_alias,
                     COALESCE(array_agg(il.label ORDER BY il.label)
                         FILTER (WHERE il.label IS NOT NULL), ARRAY[]::text[]) AS labels
              FROM issues i
@@ -754,6 +800,10 @@ impl Database {
                  assignee_account_id = COALESCE($8, assignee_account_id),
                  due_date = CASE WHEN $11 THEN $12 ELSE due_date END,
                  snoozed_until = CASE WHEN $13 THEN $14 ELSE snoozed_until END,
+                 workflow_alias = CASE WHEN $15 THEN $16 ELSE workflow_alias END,
+                 workflow_alias_version = CASE WHEN $15 THEN
+                     (SELECT max(version) FROM workflow_alias_versions WHERE project_id = $1)
+                     ELSE workflow_alias_version END,
                  version = version + 1,
                  updated_at = now(),
                  completed_at = CASE
@@ -777,6 +827,8 @@ impl Database {
         .bind(update.due_date.flatten())
         .bind(update.snoozed_until.is_some())
         .bind(update.snoozed_until.flatten())
+        .bind(update.workflow_alias.is_some())
+        .bind(update.workflow_alias.flatten())
         .execute(&mut *tx)
         .await?
         .rows_affected();

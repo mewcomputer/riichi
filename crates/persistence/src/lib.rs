@@ -16,8 +16,11 @@ mod organization;
 mod outbox;
 mod reports;
 mod sessions;
+mod subscriptions;
+mod templates;
 mod triage;
 mod views;
+mod workflow;
 
 use chrono::{DateTime, Duration, Utc};
 use error::PersistenceError;
@@ -50,12 +53,14 @@ pub use models::{
     DocumentVersionRecord as DocumentVersion, ExternalIssueRecord,
     GlobalApprovalRequestRecord as GlobalApprovalRequest, HumanQueueIssueRecord as HumanQueueIssue,
     IssueCreate, IssueEdgeRecord as IssueEdge, IssueProjectRecord, IssueRecord,
-    IssueSeed as NewIssue, IssueUpdate, IssueUpdateResult,
+    IssueSeed as NewIssue, IssueSubscriptionRecord as IssueSubscription,
+    IssueTemplateRecord as IssueTemplate, IssueUpdate, IssueUpdateResult,
     LeaseCollaboratorRecord as LeaseCollaborator, NotificationRecord as Notification,
     OutboxMessage as Message, QuarantinedAttemptRecord as QuarantinedAttempt,
     ReadyExclusionRecord as ReadyExclusion, ReadyIssueRecord as ReadyIssue, ReadySnapshot,
     RecoveryChecklistRecord as RecoveryChecklist, ReportAction as Action, ReportBatch,
     ReportBatchResult, ReportInput as Report, ReportOperation, SubissueRecord,
+    WorkflowAliasRecord as WorkflowAlias,
 };
 pub use onboarding::OnboardingSampleRecord;
 pub use organization::NavigationRow;

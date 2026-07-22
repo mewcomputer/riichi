@@ -310,6 +310,22 @@ impl Database {
             )
             .await?;
             sqlx::query(
+                "INSERT INTO notifications
+                 (id, recipient_account_id, kind, project_id, issue_id, payload, dedupe_key)
+                 SELECT gen_random_uuid(), sub.account_id, 'lease', $1, $2,
+                        jsonb_build_object('subscription_kind', 'lease_expiry', 'lease_id', $3),
+                        'subscription:lease_expiry:' || $3::text
+                 FROM issue_subscriptions sub
+                 WHERE sub.project_id = $1 AND sub.kind = 'lease_expiry'
+                   AND (sub.issue_id IS NULL OR sub.issue_id = $2)
+                 ON CONFLICT DO NOTHING",
+            )
+            .bind(project_id)
+            .bind(issue_id)
+            .bind(lease_id)
+            .execute(&mut *tx)
+            .await?;
+            sqlx::query(
                 "INSERT INTO audit_records
                  (id, project_id, actor_id, role_id, session_id, request_id, operation, target_type, target_id)
                  SELECT $1, i.project_id, $2, $3, $4, $5, 'expire_lease', 'issue', $6

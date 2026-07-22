@@ -19,6 +19,7 @@ import {
   getAgentRoster,
   getCurrentUser,
   getGlobalIssue,
+  getWorkflowAliases,
   getIssueDescriptionDocument,
   getDocumentVersion,
   getDocument,
@@ -90,6 +91,10 @@ function IssueEditor({
   accountId?: string;
 }) {
   const queryClient = useQueryClient();
+  const workflowAliasesQuery = useQuery({
+    queryKey: ["workflow-aliases", projectId],
+    queryFn: () => getWorkflowAliases(projectId),
+  });
   const descriptionDocumentQuery = useQuery({
     queryKey: ["issue-description-document", projectId, issue.id],
     queryFn: () => getIssueDescriptionDocument(projectId, issue.id),
@@ -214,7 +219,7 @@ function IssueEditor({
   }, []);
   const issueMutationChain = useRef(Promise.resolve());
   const mutation = useMutation({
-    mutationFn: (input: { title?: string; status?: IssueRecord["status"]; importance?: IssueRecord["importance"]; spec_complete?: boolean; labels?: string[]; assignee_account_id?: string; due_date?: string | null; snoozed_until?: string | null }) => {
+    mutationFn: (input: { title?: string; status?: IssueRecord["status"]; importance?: IssueRecord["importance"]; spec_complete?: boolean; labels?: string[]; assignee_account_id?: string; due_date?: string | null; snoozed_until?: string | null; workflow_alias?: string | null }) => {
       const request = issueMutationChain.current.then(async () => {
         return updateIssueMetadata(metadataCollection, projectId, issue.id, input);
       });
@@ -222,7 +227,7 @@ function IssueEditor({
       return request;
     },
     onMutate: (input) => {
-      const field = input.status ? "status" : input.importance ? "priority" : input.spec_complete !== undefined ? "specification" : input.labels ? "labels" : input.assignee_account_id ? "assignee" : input.due_date !== undefined ? "due date" : input.snoozed_until !== undefined ? "snooze" : "issue";
+      const field = input.status ? "status" : input.importance ? "priority" : input.spec_complete !== undefined ? "specification" : input.labels ? "labels" : input.assignee_account_id ? "assignee" : input.due_date !== undefined ? "due date" : input.snoozed_until !== undefined ? "snooze" : input.workflow_alias !== undefined ? "workflow label" : "issue";
       setPropertyFeedback({ state: "pending", message: `Saving ${field}…` });
     },
     onSuccess: (updated, input) => {
@@ -665,6 +670,7 @@ function IssueEditor({
           <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Team</span><span className="font-mono">{issue.display_key.split("-")[0]}</span></div>
           <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Project</span><span className="truncate">{issue.projects.find((project) => project.project_id === projectId)?.project_name ?? "Unassigned"}</span></div>
           <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Assignee</span><div className="flex items-center gap-2"><span className="font-mono text-xs">{issue.assignee_account_id?.slice(0, 8) ?? "Unassigned"}</span>{accountId && issue.assignee_account_id !== accountId ? <Button size="sm" variant="outline" className="h-8" onClick={() => { setPropertyFeedback({ state: "pending", message: "Assigning to you…" }); mutation.mutate({ assignee_account_id: accountId }); }} disabled={mutation.isPending}>Assign to me</Button> : null}</div></div>
+          {workflowAliasesQuery.data?.length ? <div className="flex items-center justify-between gap-3"><label htmlFor="issue-workflow-alias" className="text-muted-foreground">Workflow label</label><select id="issue-workflow-alias" className="h-8 max-w-48 rounded-md border border-border bg-background px-2 text-xs" value={issue.workflow_alias ?? ""} onChange={(event) => mutation.mutate({ workflow_alias: event.target.value || null })} disabled={mutation.isPending}><option value="">Canonical status</option>{workflowAliasesQuery.data.map((alias) => <option key={`${alias.version}-${alias.label}`} value={alias.label}>{alias.label}</option>)}</select></div> : null}
           <div className="grid gap-2"><div className="flex items-start justify-between gap-3"><span className="pt-0.5 text-muted-foreground">Labels</span>{labels.length > 0 ? <div className="flex flex-wrap justify-end gap-1">{labels.map((label) => <span key={label} className="inline-flex items-center gap-1"><Badge variant="secondary">{label}</Badge><button type="button" className="text-muted-foreground hover:text-destructive" aria-label={`Remove label ${label}`} onClick={() => { const next = labels.filter((current) => current !== label); setPropertyFeedback({ state: "pending", message: `Removing label ${label}…` }); mutation.mutate({ labels: next }); }} disabled={mutation.isPending}>×</button></span>)}</div> : <span className="text-muted-foreground/60">None</span>}</div><div className="flex gap-2"><Input aria-label="New label" value={labelDraft} onChange={(event) => setLabelDraft(event.target.value)} placeholder="Add label" className="h-8 text-xs" /><Button size="sm" variant="outline" className="h-8" onClick={() => { const nextLabel = labelDraft.trim(); if (!nextLabel || labels.includes(nextLabel)) return; setPropertyFeedback({ state: "pending", message: `Adding label ${nextLabel}…` }); setLabelDraft(""); mutation.mutate({ labels: [...labels, nextLabel] }); }} disabled={mutation.isPending || !labelDraft.trim()}>Add</Button></div></div>
           {propertyFeedback ? <p role={propertyFeedback.state === "rejected" ? "alert" : "status"} className={propertyFeedback.state === "rejected" ? "text-xs text-destructive" : propertyFeedback.state === "pending" ? "text-xs text-muted-foreground" : "text-xs text-emerald-400"}>{propertyFeedback.message}</p> : null}
           <div className="flex items-center justify-between gap-3"><label htmlFor="issue-due-date" className="text-muted-foreground">Due date</label><div className="flex items-center gap-2"><Input id="issue-due-date" type="date" value={dueDate} onChange={(event) => { const next = event.target.value; setDueDate(next); mutation.mutate({ due_date: next || null }); }} disabled={mutation.isPending} className="h-8 w-36 text-xs" />{dueDate ? <Button size="sm" variant="ghost" className="h-8 px-2" onClick={() => { setDueDate(""); mutation.mutate({ due_date: null }); }} disabled={mutation.isPending}>Clear</Button> : null}</div></div>

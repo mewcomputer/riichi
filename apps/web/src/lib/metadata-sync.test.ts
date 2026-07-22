@@ -99,6 +99,8 @@ describe("issueFromSyncRecord", () => {
       updated_at: "2026-01-01T00:00:00Z",
       due_date: null,
       snoozed_until: null,
+      workflow_alias: null,
+      workflow_alias_version: null,
       rank: 1,
       dispatch_version: 1,
       assignee_account_id: null,

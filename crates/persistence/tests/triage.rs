@@ -225,6 +225,9 @@ async fn issue_crud_round_trip_preserves_triage_fields_and_rejects_stale_writes(
                 rank: Some(7),
                 labels: Some(vec!["pilot".to_owned()]),
                 assignee_account_id: None,
+                due_date: None,
+                snoozed_until: None,
+                workflow_alias: None,
             },
             actor_id,
         )

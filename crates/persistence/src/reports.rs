@@ -56,6 +56,22 @@ async fn quarantine_report(
     .bind(payload)
     .execute(&mut **tx)
     .await?;
+    sqlx::query(
+        "INSERT INTO notifications
+         (id, recipient_account_id, kind, project_id, issue_id, payload, dedupe_key)
+         SELECT gen_random_uuid(), s.account_id, 'takeover', $1, $2,
+                jsonb_build_object('subscription_kind', 'quarantine', 'reason', $3),
+                'subscription:quarantine:' || $2::text || ':' || extract(epoch from now())::text
+         FROM issue_subscriptions s
+         WHERE s.project_id = $1 AND s.kind = 'quarantine'
+           AND (s.issue_id IS NULL OR s.issue_id = $2)
+         ON CONFLICT DO NOTHING",
+    )
+    .bind(project_id)
+    .bind(issue_id)
+    .bind(reason)
+    .execute(&mut **tx)
+    .await?;
     insert_audit(
         tx,
         project_id,

@@ -38,6 +38,7 @@ mod github;
 mod issues;
 mod navigation;
 mod onboarding;
+mod p1;
 mod projects;
 mod views;
 
@@ -50,6 +51,7 @@ use github::*;
 use issues::*;
 use navigation::*;
 use onboarding::*;
+use p1::*;
 use projects::*;
 use views::*;
 
@@ -150,6 +152,22 @@ fn app_with_optional_auth_and_electric_url_and_attachment_store(
             get(human_avatar).put(upload_human_avatar).delete(delete_human_avatar),
         )
         .route("/api/v1/navigation", get(navigation))
+        .route(
+            "/api/v1/projects/{project_id}/workflow-aliases",
+            get(list_workflow_aliases).put(save_workflow_aliases),
+        )
+        .route(
+            "/api/v1/projects/{project_id}/templates",
+            get(list_templates).post(create_template),
+        )
+        .route(
+            "/api/v1/projects/{project_id}/templates/{template_id}/instantiate",
+            post(instantiate_template),
+        )
+        .route(
+            "/api/v1/projects/{project_id}/subscriptions",
+            get(list_subscriptions).post(set_subscription),
+        )
         .route(
             "/api/v1/views",
             get(list_saved_views).post(save_view),
@@ -982,6 +1000,7 @@ struct UpdateIssueRequest {
     assignee_account_id: Option<Uuid>,
     due_date: Option<Option<chrono::NaiveDate>>,
     snoozed_until: Option<Option<chrono::NaiveDate>>,
+    workflow_alias: Option<Option<String>>,
 }
 
 #[derive(Debug, Deserialize)]

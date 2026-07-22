@@ -473,10 +473,10 @@ shows that the gap is planning rather than basic visibility or time semantics.
 
 ### Later slices
 
-- [ ] Add daily dates and snoozing without introducing cycles.
-- [ ] Add presentation workflow aliases with canonical lifecycle mappings.
-- [ ] Add versioned issue templates before considering recurrence.
-- [ ] Add actionable subscriptions after view permissions and query stability
+- [x] Add daily dates and snoozing without introducing cycles.
+- [x] Add presentation workflow aliases with canonical lifecycle mappings.
+- [x] Add versioned issue templates before considering recurrence.
+- [x] Add actionable subscriptions after view permissions and query stability
   are proven.
 - [ ] Add project overview and richer GitHub workflow integration after P0 is
   routinely used.

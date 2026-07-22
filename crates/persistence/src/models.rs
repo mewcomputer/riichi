@@ -61,6 +61,8 @@ pub struct HumanQueueIssueRecord {
     pub updated_at: DateTime<Utc>,
     pub due_date: Option<NaiveDate>,
     pub snoozed_until: Option<NaiveDate>,
+    pub workflow_alias: Option<String>,
+    pub workflow_alias_version: Option<i64>,
     pub rank: i64,
     pub dispatch_version: i64,
     pub assignee_account_id: Option<Uuid>,
@@ -88,6 +90,8 @@ pub struct IssueRecord {
     pub completed_at: Option<DateTime<Utc>>,
     pub due_date: Option<NaiveDate>,
     pub snoozed_until: Option<NaiveDate>,
+    pub workflow_alias: Option<String>,
+    pub workflow_alias_version: Option<i64>,
     pub rank: i64,
     pub rank_scope: String,
     pub dispatch_version: i64,
@@ -361,6 +365,37 @@ pub struct IssueUpdate {
     pub assignee_account_id: Option<Uuid>,
     pub due_date: Option<Option<NaiveDate>>,
     pub snoozed_until: Option<Option<NaiveDate>>,
+    pub workflow_alias: Option<Option<String>>,
+}
+
+#[derive(Debug, Clone, Serialize, FromRow)]
+pub struct WorkflowAliasRecord {
+    pub project_id: Uuid,
+    pub version: i64,
+    pub label: String,
+    pub canonical_status: String,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, FromRow)]
+pub struct IssueTemplateRecord {
+    pub id: Uuid,
+    pub project_id: Uuid,
+    pub name: String,
+    pub version: i64,
+    pub snapshot: serde_json::Value,
+    pub created_by: Uuid,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, FromRow)]
+pub struct IssueSubscriptionRecord {
+    pub id: Uuid,
+    pub account_id: Uuid,
+    pub project_id: Uuid,
+    pub issue_id: Option<Uuid>,
+    pub kind: String,
+    pub created_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

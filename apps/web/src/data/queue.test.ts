@@ -26,6 +26,8 @@ const baseIssue: HumanQueueIssue = {
   updated_at: "2026-07-11T12:00:00.000Z",
   due_date: null,
   snoozed_until: null,
+  workflow_alias: null,
+  workflow_alias_version: null,
   rank: 0,
   dispatch_version: 1,
   assignee_account_id: null,

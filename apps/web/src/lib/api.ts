@@ -45,6 +45,8 @@ export type HumanQueueIssue = {
   updated_at: string;
   due_date: string | null;
   snoozed_until: string | null;
+  workflow_alias: string | null;
+  workflow_alias_version: number | null;
   rank: number;
   dispatch_version: number;
   assignee_account_id: string | null;
@@ -924,6 +926,7 @@ export function updateIssue(
     assignee_account_id?: string | null;
     due_date?: string | null;
     snoozed_until?: string | null;
+    workflow_alias?: string | null;
   },
 ) {
   return sendJsonWithHeaders<IssueRecord>(
@@ -933,6 +936,34 @@ export function updateIssue(
   ).then(({ data, response }) => Object.assign(data, {
     transactionId: Number(response.headers.get("x-riichi-transaction-id")),
   }));
+}
+
+export function getWorkflowAliases(projectId: string) {
+  return getJson<Array<{ project_id: string; version: number; label: string; canonical_status: string; created_at: string }>>(`/api/v1/projects/${encodeURIComponent(projectId)}/workflow-aliases`);
+}
+
+export function saveWorkflowAliases(projectId: string, aliases: Array<{ label: string; canonical_status: string }>) {
+  return sendJson(`/api/v1/projects/${encodeURIComponent(projectId)}/workflow-aliases`, "PUT", { aliases });
+}
+
+export function listIssueTemplates(projectId: string) {
+  return getJson<Array<{ id: string; project_id: string; name: string; version: number; snapshot: Record<string, unknown>; created_by: string; created_at: string }>>(`/api/v1/projects/${encodeURIComponent(projectId)}/templates`);
+}
+
+export function createIssueTemplate(projectId: string, input: { name: string; snapshot: Record<string, unknown> }) {
+  return sendJson(`/api/v1/projects/${encodeURIComponent(projectId)}/templates`, "POST", input);
+}
+
+export function instantiateIssueTemplate(projectId: string, templateId: string, title?: string) {
+  return sendJson<IssueRecord>(`/api/v1/projects/${encodeURIComponent(projectId)}/templates/${encodeURIComponent(templateId)}/instantiate`, "POST", title ? { title } : {});
+}
+
+export function setIssueSubscription(projectId: string, input: { issue_id?: string; kind: "approval" | "lease_expiry" | "blocked_dependency" | "quarantine"; enabled: boolean }) {
+  return sendNoContent(`/api/v1/projects/${encodeURIComponent(projectId)}/subscriptions`, "POST", input);
+}
+
+export function listIssueSubscriptions(projectId: string) {
+  return getJson<Array<{ id: string; account_id: string; project_id: string; issue_id: string | null; kind: string; created_at: string }>>(`/api/v1/projects/${encodeURIComponent(projectId)}/subscriptions`);
 }
 
 export function createIssueEdge(

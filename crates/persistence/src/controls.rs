@@ -413,14 +413,23 @@ impl Database {
         sqlx::query(
             "INSERT INTO notifications
              (id, recipient_account_id, kind, project_id, issue_id, actor_id, payload, dedupe_key)
-             SELECT gen_random_uuid(), pm.account_id, 'approval', $1, $2, $3,
+             SELECT gen_random_uuid(), recipients.account_id, 'approval', $1, $2, $3,
                     jsonb_build_object('approval_id', $4, 'target_version', $5),
                     'approval:' || $4::text
-             FROM project_memberships pm
-             WHERE pm.project_id = $1
-               AND pm.revoked_at IS NULL
-               AND pm.role IN ('owner', 'admin')
-               AND pm.account_id <> $3
+             FROM (
+                 SELECT pm.account_id
+                 FROM project_memberships pm
+                 WHERE pm.project_id = $1
+                   AND pm.revoked_at IS NULL
+                   AND pm.role IN ('owner', 'admin')
+                 UNION
+                 SELECT s.account_id
+                 FROM issue_subscriptions s
+                 WHERE s.project_id = $1
+                   AND s.kind = 'approval'
+                   AND (s.issue_id IS NULL OR s.issue_id = $2)
+             ) recipients
+             WHERE recipients.account_id <> $3
              ON CONFLICT (recipient_account_id, dedupe_key) DO NOTHING",
         )
         .bind(project_id)

@@ -383,6 +383,7 @@ pub(super) async fn update_issue(
                 assignee_account_id: request.assignee_account_id,
                 due_date: request.due_date,
                 snoozed_until: request.snoozed_until,
+                workflow_alias: request.workflow_alias,
             },
             principal.account.id,
         )
