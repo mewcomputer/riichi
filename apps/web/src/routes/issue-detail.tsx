@@ -268,6 +268,26 @@ function IssueEditor({
       }
     },
   });
+  const undoMutation = useMutation({
+    mutationFn: ({ field, value }: { field: string; value: unknown }) => {
+      const input: Parameters<typeof updateIssue>[2] = { expected_version: issue.version };
+      if (field === "status" && typeof value === "string") input.status = value as IssueRecord["status"];
+      else if (field === "importance" && typeof value === "string") input.importance = value as IssueRecord["importance"];
+      else if (field === "agent eligibility" && typeof value === "boolean") input.agent_eligible = value;
+      else if (field === "specification" && typeof value === "boolean") input.spec_complete = value;
+      else if (field === "rank" && typeof value === "number") input.rank = value;
+      else if (field === "labels" && Array.isArray(value) && value.every((label) => typeof label === "string")) input.labels = value;
+      else throw new Error("This history event cannot be undone safely.");
+      return updateIssue(projectId, issue.id, input);
+    },
+    onSuccess: () => {
+      setPropertyFeedback({ state: "confirmed", message: "Change undone. Server state is confirmed." });
+      void queryClient.invalidateQueries({ queryKey: ["issue", projectId, issue.id] });
+      void queryClient.invalidateQueries({ queryKey: ["issue", "global", issue.id] });
+      void queryClient.invalidateQueries({ queryKey: ["project", projectId, "queue"] });
+    },
+    onError: (error) => setPropertyFeedback({ state: "rejected", message: error instanceof Error ? error.message : "Undo was rejected." }),
+  });
   const hasDraftChanges = title.trim() !== issue.title;
   useEffect(() => {
     if (!hasDraftChanges || mutation.isPending) return;
@@ -484,6 +504,8 @@ function IssueEditor({
         submitting={commentMutation.isPending}
         error={activityQuery.error ?? commentMutation.error ?? undefined}
         onSubmit={(content) => commentMutation.mutate(content)}
+        onUndo={(_activity, field, value) => undoMutation.mutate({ field, value })}
+        undoing={undoMutation.isPending}
       />
       </main>
       <aside className="grid content-start gap-3 text-sm">

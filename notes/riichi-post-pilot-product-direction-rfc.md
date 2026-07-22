@@ -437,7 +437,9 @@ shows that the gap is planning rather than basic visibility or time semantics.
 - [x] Ship relationship visibility and duplicate resolution: issue detail now
   shows all linked relationships, and duplicate links identify the survivor
   or deprecated issue without moving history.
-- [ ] Ship readable history and version-checked compensating undo.
+- [x] Ship readable history and version-checked compensating undo for
+  unambiguous ordinary property changes; agent actions remain explicit without
+  an unsafe automatic inverse.
 
 ### Later slices
 

@@ -34,6 +34,14 @@ function diff(activity: ActivityRecord) {
   });
 }
 
+const undoableFields = new Set(["status", "importance", "agent eligibility", "specification", "rank", "labels"]);
+
+function undoValue(activity: ActivityRecord) {
+  const change = changes(activity).find((candidate) => undoableFields.has(String(candidate.field)) && "from" in candidate && "to" in candidate);
+  if (!change) return null;
+  return { field: String(change.field), value: change.from };
+}
+
 function statusSummary(activities: ActivityRecord[]) {
   const transitions = activities.flatMap((activity) => changes(activity).filter((change) => change.field === "status" && "from" in change && "to" in change));
   if (transitions.length === 0) return null;
@@ -107,6 +115,8 @@ export function IssueActivityTimeline({
   submitting = false,
   error,
   onSubmit,
+  onUndo,
+  undoing = false,
 }: {
   comments: CommentRecord[];
   activities: ActivityRecord[];
@@ -114,6 +124,8 @@ export function IssueActivityTimeline({
   submitting?: boolean;
   error?: Error;
   onSubmit: (content: Record<string, unknown>) => void;
+  onUndo?: (activity: ActivityRecord, field: string, value: unknown) => void;
+  undoing?: boolean;
 }) {
   const entries = compactTimeline(comments, activities);
   return (
@@ -140,7 +152,10 @@ export function IssueActivityTimeline({
                 {summary ? null : <span className="ml-2 text-muted-foreground">{entry.topic}</span>}
               </summary>
               <div className="mt-2 grid gap-2 border-l border-border/60 pl-3">
-                {entry.activities.map((activity) => <div key={activity.id} className="text-muted-foreground"><span>{diff(activity).join(" · ") || eventLabel(activity.kind)}</span><span className="ml-2 text-[10px]">· {new Date(activity.created_at).toLocaleString()}</span></div>)}
+                {entry.activities.map((activity) => {
+                  const inverse = undoValue(activity);
+                  return <div key={activity.id} className="flex items-center gap-2 text-muted-foreground"><span className="min-w-0 flex-1">{diff(activity).join(" · ") || eventLabel(activity.kind)}<span className="ml-2 text-[10px]">· {new Date(activity.created_at).toLocaleString()}</span></span>{inverse && onUndo ? <button type="button" className="shrink-0 text-[10px] text-foreground underline underline-offset-2 disabled:opacity-50" onClick={() => onUndo(activity, inverse.field, inverse.value)} disabled={undoing}>Undo</button> : null}</div>;
+                })}
               </div>
             </details>
           </div>;
