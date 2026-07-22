@@ -1978,7 +1978,10 @@ mod tests {
             document["paths"]["/api/v1/projects/{project_id}/views/{view_id}"]["delete"]
                 .is_object()
         );
-        assert!(document["paths"]["/api/v1/projects/{project_id}/views/{view_id}/pin"]["post"].is_object());
+        assert!(
+            document["paths"]["/api/v1/projects/{project_id}/views/{view_id}/pin"]["post"]
+                .is_object()
+        );
         assert!(document["paths"]["/api/v1/projects/{project_id}/agent-roles/{role_id}/sessions"]["post"].is_object());
         assert!(
             document["paths"]["/api/v1/projects/{project_id}/onboarding-sample"]["post"]
