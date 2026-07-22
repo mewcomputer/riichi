@@ -983,6 +983,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{project_id}/views/{view_id}/pin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["pinProjectSavedView"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ready": {
         parameters: {
             query?: never;
@@ -1261,6 +1277,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/views/{view_id}/pin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["pinSavedView"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1436,6 +1468,9 @@ export interface components {
             /** Format: uuid */
             triage_issue_id: string;
         };
+        PinViewRequest: {
+            pinned: boolean;
+        };
         ReadyRequest: {
             /** Format: int64 */
             limit?: number;
@@ -1461,11 +1496,12 @@ export interface components {
             /** Format: uuid */
             id: string;
             name: string;
+            pinned: boolean;
             /** Format: uuid */
-            project_id?: string | null;
+            project_id: string | null;
             /** Format: date-time */
             updated_at: string;
-            visibility?: string;
+            visibility: string;
         };
         UnreadCountResponse: {
             /** Format: int64 */
@@ -2961,6 +2997,31 @@ export interface operations {
             };
         };
     };
+    pinProjectSavedView: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                view_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PinViewRequest"];
+            };
+        };
+        responses: {
+            /** @description Project saved view pin updated */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     ready: {
         parameters: {
             query?: never;
@@ -3430,6 +3491,30 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Saved queue view deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    pinSavedView: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                view_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PinViewRequest"];
+            };
+        };
+        responses: {
+            /** @description Personal saved view pin updated */
             204: {
                 headers: {
                     [name: string]: unknown;

@@ -1,4 +1,4 @@
-import { Filter, SlidersHorizontal, X } from "lucide-react";
+import { Filter, Pin, PinOff, SlidersHorizontal, X } from "lucide-react";
 import * as React from "react";
 
 import { Button } from "@/components/ui/button";
@@ -26,11 +26,12 @@ export function QueueBulkResultSummary({ result, onDismiss }: { result: QueueBul
   return <div role="status" className="flex items-center gap-2 border-b border-border/50 bg-muted/10 px-4 py-1.5 text-xs"><span>{bulkResultCopy(result)}{result.total > 1 ? ` of ${result.total}` : ""}</span>{result.rejected > 0 ? <span className="text-destructive">Review rejected rows.</span> : null}<Button variant="ghost" size="sm" className="ml-auto h-6 px-2 text-xs" onClick={onDismiss}>Dismiss</Button></div>;
 }
 
-export function QueueSavedViews({ views, onApply, onSave, onDelete }: {
+export function QueueSavedViews({ views, onApply, onSave, onDelete, onPin }: {
   views: SavedView[];
   onApply: (view: SavedView) => void;
   onSave: (name: string, scope: "project" | "personal") => void;
   onDelete: (view: SavedView) => void;
+  onPin: (view: SavedView) => void;
 }) {
   const [open, setOpen] = React.useState(false);
   const [name, setName] = React.useState("");
@@ -47,6 +48,7 @@ export function QueueSavedViews({ views, onApply, onSave, onDelete }: {
         <DropdownMenuSeparator />
         {views.length ? views.map((view) => <div key={view.id} className="flex items-center gap-1 px-1">
           <DropdownMenuItem className="min-w-0 flex-1" onClick={() => onApply(view)}><span className="truncate">{view.name}</span><span className="ml-auto text-[10px] text-muted-foreground">{view.visibility}</span></DropdownMenuItem>
+          <button type="button" className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground" aria-label={`${view.pinned ? "Unpin" : "Pin"} ${view.name}`} onClick={() => onPin(view)}>{view.pinned ? <PinOff className="size-3" /> : <Pin className="size-3" />}</button>
           <button type="button" className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground" aria-label={`Delete ${view.name}`} onClick={() => onDelete(view)}>×</button>
         </div>) : <p className="px-2 py-1.5 text-xs text-muted-foreground">No saved views yet.</p>}
         <DropdownMenuSeparator />

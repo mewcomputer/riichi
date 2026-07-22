@@ -7,7 +7,7 @@ import { Archive, CircleDot, ExternalLink, Layers3, UserRound, X } from "lucide-
 
 import { Kbd } from "@/components/ui/kbd";
 import { Button } from "@/components/ui/button";
-import { ApiError, createIssue, createOnboardingSample, deleteProjectSavedView, deleteSavedView, getCurrentUser, getProjectSavedViews, getSavedViews, saveProjectSavedView, saveSavedView } from "@/lib/api";
+import { ApiError, createIssue, createOnboardingSample, deleteProjectSavedView, deleteSavedView, getCurrentUser, getProjectSavedViews, getSavedViews, pinProjectSavedView, pinSavedView, saveProjectSavedView, saveSavedView } from "@/lib/api";
 import { addQueueLabel, matchesQueueAdvancedFilter, matchesQueueView, toQueueItem } from "../data/queue";
 import { useAllIssues } from "../hooks/use-all-issues";
 import { useTeamIssues } from "../hooks/use-team-issues";
@@ -145,6 +145,12 @@ export function QueuePage({ initialFilter = "all", initialView = "all", teamId, 
   });
   const deleteViewMutation = useMutation({
     mutationFn: (view: { id: string; visibility: "project" | "personal" }) => view.visibility === "project" && projectId ? deleteProjectSavedView(projectId, view.id) : deleteSavedView(view.id),
+    onSuccess: (_result, view) => void queryClient.invalidateQueries({ queryKey: view.visibility === "project" ? ["saved-views", "project", projectId] : ["saved-views"] }),
+  });
+  const pinViewMutation = useMutation({
+    mutationFn: (view: { id: string; visibility: "project" | "personal"; pinned: boolean }) => view.visibility === "project" && projectId
+      ? pinProjectSavedView(projectId, view.id, !view.pinned)
+      : pinSavedView(view.id, !view.pinned),
     onSuccess: (_result, view) => void queryClient.invalidateQueries({ queryKey: view.visibility === "project" ? ["saved-views", "project", projectId] : ["saved-views"] }),
   });
   const sampleMutation = useMutation({
@@ -397,6 +403,8 @@ export function QueuePage({ initialFilter = "all", initialView = "all", teamId, 
           memberships={meQuery.data?.memberships}
           activeProjectId={projectId}
           onProjectChange={selectProject}
+          pinnedViews={savedViews.filter((view) => view.pinned)}
+          onPinnedViewSelect={(view) => updateSearch(parseQueueSearch(view.filters), true)}
           onLogout={appLogout}
           onNavigate={(label) => {
             if (label === "Agents") void navigate({ to: "/$organizationSlug/agents", params: { organizationSlug } });
@@ -422,7 +430,7 @@ export function QueuePage({ initialFilter = "all", initialView = "all", teamId, 
         view={view}
         views={queueViews}
         onViewChange={(nextView) => updateSearch({ view: nextView as QueueView })}
-        actions={<><QueueSavedViews views={savedViews} onApply={(savedView) => updateSearch(parseQueueSearch(savedView.filters), true)} onSave={(name, scope) => saveViewMutation.mutate({ name, scope })} onDelete={(savedView) => deleteViewMutation.mutate(savedView)} /><QueueFilterMenu items={allItems} advancedFilter={advancedFilter} onAdvancedFilterChange={(nextFilter) => updateSearch({ advancedFilter: nextFilter })} /><QueueDisplayMenu showDetails={showDetails} onShowDetailsChange={(nextShowDetails) => updateSearch({ showDetails: nextShowDetails })} /></>}
+        actions={<><QueueSavedViews views={savedViews} onApply={(savedView) => updateSearch(parseQueueSearch(savedView.filters), true)} onSave={(name, scope) => saveViewMutation.mutate({ name, scope })} onDelete={(savedView) => deleteViewMutation.mutate(savedView)} onPin={(savedView) => pinViewMutation.mutate(savedView)} /><QueueFilterMenu items={allItems} advancedFilter={advancedFilter} onAdvancedFilterChange={(nextFilter) => updateSearch({ advancedFilter: nextFilter })} /><QueueDisplayMenu showDetails={showDetails} onShowDetailsChange={(nextShowDetails) => updateSearch({ showDetails: nextShowDetails })} /></>}
       />
       <QueueToolbar
         query={query}

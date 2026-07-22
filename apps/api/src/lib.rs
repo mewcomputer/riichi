@@ -155,6 +155,7 @@ fn app_with_optional_auth_and_electric_url_and_attachment_store(
             get(list_saved_views).post(save_view),
         )
         .route("/api/v1/views/{view_id}", delete(delete_saved_view))
+        .route("/api/v1/views/{view_id}/pin", post(pin_saved_view))
         .route(
             "/api/v1/projects/{project_id}/views",
             get(list_project_saved_views).post(save_project_view),
@@ -162,6 +163,10 @@ fn app_with_optional_auth_and_electric_url_and_attachment_store(
         .route(
             "/api/v1/projects/{project_id}/views/{view_id}",
             delete(delete_project_saved_view),
+        )
+        .route(
+            "/api/v1/projects/{project_id}/views/{view_id}/pin",
+            post(pin_project_saved_view),
         )
         .route(
             "/api/v1/organizations/{organization_id}/documents",
@@ -514,8 +519,10 @@ pub fn openapi_document_value() -> Value {
             ,"/api/v1/navigation": {"get": {"operationId": "getNavigation", "responses": {"200": {"description": "Accessible organizations, projects, and teams", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/NavigationResponse"}}}}}}}
             ,"/api/v1/views": {"get": {"operationId": "listSavedViews", "responses": {"200": {"description": "Account-owned saved queue views", "content": {"application/json": {"schema": {"type": "array", "items": {"$ref": "#/components/schemas/SavedView"}}}}}}}, "post": {"operationId": "saveSavedView", "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/SaveViewRequest"}}}}, "responses": {"200": {"description": "Saved queue view", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/SavedView"}}}}}}}
             ,"/api/v1/views/{view_id}": {"delete": {"operationId": "deleteSavedView", "parameters": [{"name": "view_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}], "responses": {"204": {"description": "Saved queue view deleted"}}}}
+            ,"/api/v1/views/{view_id}/pin": {"post": {"operationId": "pinSavedView", "parameters": [{"name": "view_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}], "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/PinViewRequest"}}}}, "responses": {"204": {"description": "Personal saved view pin updated"}}}}
             ,"/api/v1/projects/{project_id}/views": {"get": {"operationId": "listProjectSavedViews", "parameters": [{"name": "project_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}], "responses": {"200": {"description": "Project-scoped saved queue views", "content": {"application/json": {"schema": {"type": "array", "items": {"$ref": "#/components/schemas/SavedView"}}}}}}}, "post": {"operationId": "saveProjectView", "parameters": [{"name": "project_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}], "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/SaveViewRequest"}}}}, "responses": {"200": {"description": "Project-scoped saved queue view", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/SavedView"}}}}}}}
             ,"/api/v1/projects/{project_id}/views/{view_id}": {"delete": {"operationId": "deleteProjectSavedView", "parameters": [{"name": "project_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}, {"name": "view_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}], "responses": {"204": {"description": "Project-scoped saved queue view deleted"}}}}
+            ,"/api/v1/projects/{project_id}/views/{view_id}/pin": {"post": {"operationId": "pinProjectSavedView", "parameters": [{"name": "project_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}, {"name": "view_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}], "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/PinViewRequest"}}}}, "responses": {"204": {"description": "Project saved view pin updated"}}}}
             ,"/api/v1/projects/{project_id}/agent-roles/{role_id}/sessions": {"post": {"operationId": "createAgentSession", "parameters": [{"name": "project_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}, {"name": "role_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}], "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CreateAgentSessionRequest"}}}}, "responses": {"200": {"description": "One-time agent session credential", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CreateAgentSessionResponse"}}}}}}}
             ,"/api/v1/projects/{project_id}/onboarding-sample": {"post": {"operationId": "createOnboardingSample", "parameters": [{"name": "project_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}], "responses": {"200": {"description": "Authoritative guided workflow sample", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/OnboardingSample"}}}}}}}
             ,"/api/v1/issues": {"get": {"operationId": "getAllIssues", "responses": {"200": {"description": "Accessible human issues"}}}}
@@ -551,7 +558,8 @@ pub fn openapi_document_value() -> Value {
             "NavigationTeam": {"type": "object", "required": ["id", "name", "key", "emoji", "projects", "views"], "properties": {"id": {"type": "string", "format": "uuid"}, "name": {"type": "string"}, "key": {"type": "string"}, "emoji": {"type": ["string", "null"]}, "projects": {"type": "array", "items": {"$ref": "#/components/schemas/NavigationProject"}}, "views": {"type": "array", "items": {"$ref": "#/components/schemas/NavigationView"}}}},
             "NavigationProject": {"type": "object", "required": ["id", "name", "role"], "properties": {"id": {"type": "string", "format": "uuid"}, "name": {"type": "string"}, "role": {"type": "string"}}},
             "NavigationView": {"type": "object", "required": ["id", "name"], "properties": {"id": {"type": "string", "format": "uuid"}, "name": {"type": "string"}}}
-            ,"SavedView": {"type": "object", "required": ["id", "account_id", "name", "filters", "created_at", "updated_at"], "properties": {"id": {"type": "string", "format": "uuid"}, "account_id": {"type": "string", "format": "uuid"}, "project_id": {"type": ["string", "null"], "format": "uuid"}, "visibility": {"type": "string"}, "name": {"type": "string"}, "filters": {"type": "object"}, "created_at": {"type": "string", "format": "date-time"}, "updated_at": {"type": "string", "format": "date-time"}}}
+            ,"PinViewRequest": {"type": "object", "required": ["pinned"], "properties": {"pinned": {"type": "boolean"}}}
+            ,"SavedView": {"type": "object", "required": ["id", "account_id", "project_id", "visibility", "pinned", "name", "filters", "created_at", "updated_at"], "properties": {"id": {"type": "string", "format": "uuid"}, "account_id": {"type": "string", "format": "uuid"}, "project_id": {"type": ["string", "null"], "format": "uuid"}, "visibility": {"type": "string"}, "pinned": {"type": "boolean"}, "name": {"type": "string"}, "filters": {"type": "object"}, "created_at": {"type": "string", "format": "date-time"}, "updated_at": {"type": "string", "format": "date-time"}}}
             ,"SaveViewRequest": {"type": "object", "required": ["name", "filters"], "properties": {"name": {"type": "string", "maxLength": 80}, "filters": {"type": "object"}}}
             ,"CreateAgentSessionRequest": {"type": "object", "properties": {"lifetime_seconds": {"type": "integer", "minimum": 60, "maximum": 86400}}}
             ,"CreateAgentSessionResponse": {"type": "object", "required": ["session_id", "agent_token", "expires_at"], "properties": {"session_id": {"type": "string", "format": "uuid"}, "agent_token": {"type": "string"}, "expires_at": {"type": "string", "format": "date-time"}}}
@@ -1963,12 +1971,14 @@ mod tests {
         assert!(document["paths"]["/api/v1/views"]["get"].is_object());
         assert!(document["paths"]["/api/v1/views"]["post"].is_object());
         assert!(document["paths"]["/api/v1/views/{view_id}"]["delete"].is_object());
+        assert!(document["paths"]["/api/v1/views/{view_id}/pin"]["post"].is_object());
         assert!(document["paths"]["/api/v1/projects/{project_id}/views"]["get"].is_object());
         assert!(document["paths"]["/api/v1/projects/{project_id}/views"]["post"].is_object());
         assert!(
             document["paths"]["/api/v1/projects/{project_id}/views/{view_id}"]["delete"]
                 .is_object()
         );
+        assert!(document["paths"]["/api/v1/projects/{project_id}/views/{view_id}/pin"]["post"].is_object());
         assert!(document["paths"]["/api/v1/projects/{project_id}/agent-roles/{role_id}/sessions"]["post"].is_object());
         assert!(
             document["paths"]["/api/v1/projects/{project_id}/onboarding-sample"]["post"]

@@ -433,7 +433,8 @@ shows that the gap is planning rather than basic visibility or time semantics.
 - [x] Ship the first issue peek slice: URL-addressable selection, queue-preserving
   `enter`/`esc` navigation, and explicit `e` expansion into the full issue page.
 - [x] Ship project-shared views alongside personal views.
-- [ ] Add pinned sidebar views after shared-view reuse is measured.
+- [x] Add pinned sidebar views as a per-user preference over personal or
+  project-shared views.
 - [x] Ship relationship visibility and duplicate resolution: issue detail now
   shows all linked relationships, and duplicate links identify the survivor
   or deprecated issue without moving history.

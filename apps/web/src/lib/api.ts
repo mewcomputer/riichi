@@ -54,6 +54,7 @@ export type SavedView = {
   account_id: string;
   project_id: string | null;
   visibility: "personal" | "project";
+  pinned: boolean;
   name: string;
   filters: Record<string, unknown>;
   created_at: string;
@@ -447,6 +448,14 @@ export function deleteSavedView(viewId: string) {
 
 export function deleteProjectSavedView(projectId: string, viewId: string) {
   return sendNoContent(`/api/v1/projects/${encodeURIComponent(projectId)}/views/${encodeURIComponent(viewId)}`, "DELETE");
+}
+
+export function pinSavedView(viewId: string, pinned: boolean) {
+  return sendNoContent(`/api/v1/views/${encodeURIComponent(viewId)}/pin`, "POST", { pinned });
+}
+
+export function pinProjectSavedView(projectId: string, viewId: string, pinned: boolean) {
+  return sendNoContent(`/api/v1/projects/${encodeURIComponent(projectId)}/views/${encodeURIComponent(viewId)}/pin`, "POST", { pinned });
 }
 
 export function getPendingApprovals() {

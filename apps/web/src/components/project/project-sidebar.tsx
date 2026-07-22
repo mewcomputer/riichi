@@ -36,7 +36,7 @@ import {
 } from "@/components/ui/sidebar";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import type { HumanMembership, NavigationResponse } from "@/lib/api";
+import type { HumanMembership, NavigationResponse, SavedView } from "@/lib/api";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { organizationSlug as toOrganizationSlug } from "@/lib/organization-slug";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -182,6 +182,8 @@ export function ProjectSidebar({
   navigation,
   activeProjectId,
   onProjectChange,
+  pinnedViews = [],
+  onPinnedViewSelect,
 }: {
   onSearch?: () => void;
   onCreate?: () => void;
@@ -196,6 +198,8 @@ export function ProjectSidebar({
   navigation?: NavigationResponse;
   activeProjectId?: string;
   onProjectChange?: (projectId: string) => void;
+  pinnedViews?: SavedView[];
+  onPinnedViewSelect?: (view: SavedView) => void;
 }) {
   const navigate = useNavigate();
   const currentPath = typeof window === "undefined" ? "" : window.location.pathname;
@@ -273,6 +277,10 @@ export function ProjectSidebar({
             </SidebarGroupContent>
           </SidebarGroup>
         ))}
+        {pinnedViews.length > 0 ? <SidebarGroup className="py-2">
+          <SidebarGroupLabel>Pinned views</SidebarGroupLabel>
+          <SidebarGroupContent><SidebarMenu>{pinnedViews.map((view) => <NavigationItem key={view.id} label={view.name} icon={ListFilter} onClick={() => onPinnedViewSelect?.(view)} />)}</SidebarMenu></SidebarGroupContent>
+        </SidebarGroup> : null}
         {(() => {
           const teams = (navigation?.organizations ?? []).flatMap((organization) => organization.teams);
           if (teams.length === 0) return null;
