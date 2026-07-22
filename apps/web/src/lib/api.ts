@@ -65,6 +65,60 @@ export type SavedView = {
   updated_at: string;
 };
 
+export type ProjectOverview = {
+  summary: {
+    project_id: string;
+    total_issue_count: number;
+    moving_count: number;
+    blocked_count: number;
+    needs_human_count: number;
+    agent_handling_count: number;
+    stale_lease_count: number;
+    pending_approval_count: number;
+    unowned_count: number;
+    due_soon_count: number;
+  };
+  issues: Array<{
+    id: string;
+    display_key: string;
+    title: string;
+    status: string;
+    importance: string;
+    assignee_account_id: string | null;
+    active_lease_id: string | null;
+    lease_expires_at: string | null;
+    due_date: string | null;
+    unresolved_blocker_count: number;
+    active_hold_count: number;
+    category: string;
+  }>;
+  recent_changes: Array<{
+    id: string;
+    operation: string;
+    target_id: string | null;
+    issue_display_key: string | null;
+    actor_id: string;
+    change_summary: Record<string, unknown>;
+    created_at: string;
+  }>;
+};
+
+export type GithubPullRequest = {
+  id: string;
+  project_id: string;
+  issue_id: string | null;
+  repository: string;
+  pull_request_number: number;
+  title: string;
+  url: string;
+  state: string;
+  review_state: string | null;
+  ci_state: string | null;
+  payload: Record<string, unknown>;
+  external_updated_at: string | null;
+  fetched_at: string;
+};
+
 export type IssueEdge = {
   id: string;
   source_issue_id: string;
@@ -330,11 +384,35 @@ export class ApiError extends Error {
   }
 }
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
-const contractClient = createClient<paths>({ baseUrl: apiBaseUrl });
+const STORAGE_KEY = "riichi:api-base-url";
+const envBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
+
+export function getApiBaseUrl(): string {
+  try {
+    return localStorage.getItem(STORAGE_KEY) ?? envBaseUrl;
+  } catch {
+    return envBaseUrl;
+  }
+}
+
+export function setApiBaseUrl(url: string): void {
+  const trimmed = url.trim().replace(/\/+$/, "");
+  try {
+    if (trimmed === "" || trimmed === envBaseUrl) {
+      localStorage.removeItem(STORAGE_KEY);
+    } else {
+      localStorage.setItem(STORAGE_KEY, trimmed);
+    }
+  } catch {
+    // localStorage unavailable — build-time default still applies.
+  }
+  window.location.reload();
+}
+
+const contractClient = createClient<paths>({ baseUrl: "" });
 
 async function getJson<T>(path: string): Promise<T> {
-  const response = await fetch(`${apiBaseUrl}${path}`, {
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
     credentials: "include",
     headers: { Accept: "application/json" },
   });
@@ -365,7 +443,7 @@ async function sendJsonWithHeaders<T>(
   method: "POST" | "PATCH" | "PUT",
   body: unknown,
 ): Promise<{ data: T; response: Response }> {
-  const response = await fetch(`${apiBaseUrl}${path}`, {
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
     method,
     credentials: "include",
     headers: { Accept: "application/json", "Content-Type": "application/json" },
@@ -390,7 +468,7 @@ async function sendJsonWithHeaders<T>(
 }
 
 async function sendNoContent(path: string, method: "POST" | "PATCH" | "DELETE" = "POST", body?: unknown): Promise<void> {
-  const response = await fetch(`${apiBaseUrl}${path}`, {
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
     method,
     credentials: "include",
     headers: { Accept: "application/json", ...(body === undefined ? {} : { "Content-Type": "application/json" }) },
@@ -418,6 +496,7 @@ export function getCurrentUser() {
 export async function getNavigation() {
   const { data, error, response } = await contractClient.GET("/api/v1/navigation", {
     credentials: "include",
+    baseUrl: getApiBaseUrl(),
   });
   if (!response.ok) {
     const errorBody = error as { code?: string; message?: string } | undefined;
@@ -485,7 +564,7 @@ export function logout() {
 export async function uploadAvatar(file: File) {
   const body = new FormData();
   body.append("avatar", file);
-  const response = await fetch(`${apiBaseUrl}/api/v1/auth/me/avatar`, {
+  const response = await fetch(`${getApiBaseUrl()}/api/v1/auth/me/avatar`, {
     method: "PUT",
     credentials: "include",
     body,
@@ -496,7 +575,7 @@ export async function uploadAvatar(file: File) {
 export async function uploadOrganizationLogo(organizationId: string, file: File) {
   const body = new FormData();
   body.append("logo", file);
-  const response = await fetch(`${apiBaseUrl}/api/v1/organizations/${encodeURIComponent(organizationId)}/logo`, {
+  const response = await fetch(`${getApiBaseUrl()}/api/v1/organizations/${encodeURIComponent(organizationId)}/logo`, {
     method: "PUT",
     credentials: "include",
     body,
@@ -595,7 +674,7 @@ function encodeBase64(bytes: ArrayBuffer | Uint8Array) {
 export async function getDocumentLoroSnapshot(documentId: string, revision?: number) {
   const query = revision === undefined ? "" : `?revision=${encodeURIComponent(revision)}`;
   const response = await fetch(
-    `${apiBaseUrl}/api/v1/documents/${encodeURIComponent(documentId)}/loro-snapshot${query}`,
+    `${getApiBaseUrl()}/api/v1/documents/${encodeURIComponent(documentId)}/loro-snapshot${query}`,
     { credentials: "include" },
   );
   if (!response.ok) throw new Error(await response.text());
@@ -612,7 +691,7 @@ export async function getDocumentLoroSnapshot(documentId: string, revision?: num
 
 export function documentLoroWebSocketUrl(documentId: string): string {
   const url = new URL(
-    `${apiBaseUrl}/api/v1/documents/${encodeURIComponent(documentId)}/loro-sync`,
+    `${getApiBaseUrl()}/api/v1/documents/${encodeURIComponent(documentId)}/loro-sync`,
     window.location.href,
   );
   url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
@@ -777,7 +856,7 @@ export function createAttachmentUpload(
 
 export async function putAttachmentUpload(uploadId: string, bytes: ArrayBuffer | Blob) {
   const response = await fetch(
-    `${apiBaseUrl}/api/v1/attachment-uploads/${encodeURIComponent(uploadId)}`,
+    `${getApiBaseUrl()}/api/v1/attachment-uploads/${encodeURIComponent(uploadId)}`,
     { method: "PUT", credentials: "include", body: bytes },
   );
   if (!response.ok) throw new ApiError(response.status, "Could not upload attachment");
@@ -792,7 +871,7 @@ export function completeAttachmentUpload(uploadId: string) {
 }
 
 export function attachmentUrl(attachmentId: string) {
-  return `${apiBaseUrl}/api/v1/attachments/${encodeURIComponent(attachmentId)}`;
+  return `${getApiBaseUrl()}/api/v1/attachments/${encodeURIComponent(attachmentId)}`;
 }
 
 export function getAgentRoster(projectId: string) {
@@ -940,6 +1019,26 @@ export function updateIssue(
 
 export function getWorkflowAliases(projectId: string) {
   return getJson<Array<{ project_id: string; version: number; label: string; canonical_status: string; created_at: string }>>(`/api/v1/projects/${encodeURIComponent(projectId)}/workflow-aliases`);
+}
+
+export function getProjectOverview(projectId: string) {
+  return getJson<ProjectOverview>(`/api/v1/projects/${encodeURIComponent(projectId)}/overview`);
+}
+
+export function getGithubPullRequests(projectId: string) {
+  return getJson<GithubPullRequest[]>(`/api/v1/projects/${encodeURIComponent(projectId)}/integrations/github/pull-requests`);
+}
+
+export function refreshGithubPullRequests(projectId: string, input: { repository: string; max_pull_requests?: number }) {
+  return sendJson<{ repository: string; imported: number }>(`/api/v1/projects/${encodeURIComponent(projectId)}/integrations/github/pull-requests/refresh`, "POST", input);
+}
+
+export function getGithubIntegration(projectId: string) {
+  return getJson<{ project_id: string; repository: string; enabled: boolean; configured_by: string; created_at: string; updated_at: string } | null>(`/api/v1/projects/${encodeURIComponent(projectId)}/integrations/github`);
+}
+
+export function setGithubIntegration(projectId: string, input: { repository: string; enabled: boolean }) {
+  return sendJson(`/api/v1/projects/${encodeURIComponent(projectId)}/integrations/github`, "PUT", input);
 }
 
 export function saveWorkflowAliases(projectId: string, aliases: Array<{ label: string; canonical_status: string }>) {

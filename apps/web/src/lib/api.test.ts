@@ -3,10 +3,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   ApiError,
   applyDocumentLoroUpdate,
+  getApiBaseUrl,
   getDocumentLoroSnapshot,
   getProjectQueue,
   importGithubIssues,
   revokeAgentSession,
+  setApiBaseUrl,
 } from "./api";
 
 afterEach(() => {
@@ -150,6 +152,61 @@ describe("operator API", () => {
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/v1/projects/project-id/agent-sessions/session-id/revoke",
       expect.objectContaining({ method: "POST", credentials: "include" }),
+    );
+  });
+});
+
+describe("runtime API base URL", () => {
+  afterEach(() => {
+    localStorage.clear();
+    vi.unstubAllGlobals();
+  });
+
+  it("returns the localStorage override when set", () => {
+    localStorage.setItem("riichi:api-base-url", "https://api.example.com");
+    expect(getApiBaseUrl()).toBe("https://api.example.com");
+  });
+
+  it("falls back to empty string when localStorage is empty", () => {
+    expect(getApiBaseUrl()).toBe("");
+  });
+
+  it("persists the URL and reloads the page", () => {
+    const reloadMock = vi.fn();
+    vi.stubGlobal("location", { reload: reloadMock });
+    setApiBaseUrl("https://staging.example.com");
+    expect(localStorage.getItem("riichi:api-base-url")).toBe("https://staging.example.com");
+    expect(reloadMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("strips trailing slashes before persisting", () => {
+    const reloadMock = vi.fn();
+    vi.stubGlobal("location", { reload: reloadMock });
+    setApiBaseUrl("https://staging.example.com/");
+    expect(localStorage.getItem("riichi:api-base-url")).toBe("https://staging.example.com");
+  });
+
+  it("removes the override when set to empty string", () => {
+    localStorage.setItem("riichi:api-base-url", "https://old.example.com");
+    const reloadMock = vi.fn();
+    vi.stubGlobal("location", { reload: reloadMock });
+    setApiBaseUrl("");
+    expect(localStorage.getItem("riichi:api-base-url")).toBeNull();
+  });
+
+  it("routes fetch calls through the override URL", async () => {
+    localStorage.setItem("riichi:api-base-url", "https://api.example.com");
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ issues: [] }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    await getProjectQueue("project-id");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.example.com/api/v1/projects/project-id/queue",
+      expect.objectContaining({ credentials: "include" }),
     );
   });
 });
