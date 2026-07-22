@@ -40,6 +40,30 @@ function statusSummary(activities: ActivityRecord[]) {
   return `updated status from ${value(transitions[0].from)} to ${value(transitions[transitions.length - 1].to)}`;
 }
 
+const eventLabels: Record<string, string> = {
+  create_issue: "created this issue",
+  update_issue: "updated this issue",
+  create_comment: "commented",
+  claim: "claimed an agent lease",
+  renew_lease: "renewed an agent lease",
+  release_lease: "released an agent lease",
+  report_batch: "reported agent progress",
+  takeover_issue: "took over agent work",
+  create_approval_request: "requested approval",
+  approve_approval_request: "approved a proposed change",
+  reject_approval_request: "rejected a proposed change",
+  supersede_approval_request: "superseded an approval",
+  document_edit: "edited the description",
+  create_hold: "placed the issue on hold",
+  release_hold: "released an issue hold",
+  create_issue_edge: "changed an issue relationship",
+  remove_issue_edge: "removed an issue relationship",
+};
+
+function eventLabel(kind: string) {
+  return eventLabels[kind] ?? kind.replaceAll("_", " ");
+}
+
 function compactTimeline(comments: CommentRecord[], activities: ActivityRecord[]) {
   const entries: TimelineEntry[] = [];
   const groups = new Map<string, ActivityRecord[]>();
@@ -112,11 +136,11 @@ export function IssueActivityTimeline({
             <span className="mt-1 size-1.5 shrink-0 rounded-full bg-muted-foreground/60" />
             <details className="min-w-0">
               <summary className="cursor-pointer list-none">
-                <span className="font-medium">{first.actor_id.slice(0, 8)} {summary ?? `updated issue ${entry.activities.length} ${entry.activities.length === 1 ? "time" : "times"}`}</span>
+                <span className="font-medium">{first.actor_id.slice(0, 8)} {summary ?? eventLabel(first.kind)}{entry.activities.length > 1 ? ` (${entry.activities.length})` : ""}</span>
                 {summary ? null : <span className="ml-2 text-muted-foreground">{entry.topic}</span>}
               </summary>
               <div className="mt-2 grid gap-2 border-l border-border/60 pl-3">
-                {entry.activities.map((activity) => <div key={activity.id} className="text-muted-foreground"><span>{diff(activity).join(" · ") || activity.kind.replaceAll("_", " ")}</span><span className="ml-2 text-[10px]">· {new Date(activity.created_at).toLocaleString()}</span></div>)}
+                {entry.activities.map((activity) => <div key={activity.id} className="text-muted-foreground"><span>{diff(activity).join(" · ") || eventLabel(activity.kind)}</span><span className="ml-2 text-[10px]">· {new Date(activity.created_at).toLocaleString()}</span></div>)}
               </div>
             </details>
           </div>;

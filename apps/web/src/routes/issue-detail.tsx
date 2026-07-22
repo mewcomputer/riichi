@@ -398,6 +398,7 @@ function IssueEditor({
       refresh();
     },
   });
+  const duplicateEdges = issue.edges.filter((edge) => edge.edge_type === "duplicate_of");
 
   return (
     <>
@@ -447,6 +448,15 @@ function IssueEditor({
               <Button size="sm" className="h-11 sm:h-7" onClick={() => { setTitle(syncConflict.title); setBody(syncConflict.body); setImportance(syncConflict.importance); setSpecComplete(syncConflict.spec_complete); setSyncConflict(null); }}>Use server version</Button>
             </div>
           </div> : null}
+      {duplicateEdges.length > 0 ? <section className="grid gap-2 rounded-lg border border-orange-400/30 bg-orange-400/5 p-3 text-xs" aria-label="Duplicate resolution">
+        <div className="flex items-center gap-2"><Badge variant="outline">{duplicateEdges.some((edge) => edge.source_issue_id === issue.id) ? "Deprecated" : "Survivor"}</Badge><span className="font-medium">This issue is linked to a duplicate resolution.</span></div>
+        {duplicateEdges.map((edge) => {
+          const linkedId = edge.source_issue_id === issue.id ? edge.target_issue_id : edge.source_issue_id;
+          const linked = allIssuesQuery.data?.find((candidate) => candidate.id === linkedId);
+          const linkedLabel = edge.source_issue_id === issue.id ? "Surviving issue" : "Deprecated issue";
+          return <Link key={edge.id} to="/$organizationSlug/teams/$teamKey/issues/$issueId" params={{ organizationSlug, teamKey, issueId: linkedId }} className="text-muted-foreground underline underline-offset-2 hover:text-foreground">{linkedLabel}: {linked?.display_key ?? linkedId.slice(0, 8)}{linked?.title ? ` · ${linked.title}` : ""}</Link>;
+        })}
+      </section> : null}
       <section className="grid gap-3 border-t border-border/60 pt-5">
         <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -575,9 +585,9 @@ function IssueEditor({
             <Button size="sm" variant="ghost" className="h-11 sm:h-7" onClick={() => releaseHoldMutation.mutate(hold.id)} disabled={releaseHoldMutation.isPending}>Release</Button>
           </div>
         ))}
-        {issue.edges.filter((edge) => edge.edge_type === "blocks").map((edge) => (
+        {issue.edges.map((edge) => (
           <div key={edge.id} className="flex items-center justify-between text-xs">
-            <span><Badge variant="outline">blocks</Badge><span className="ml-2 font-mono text-muted-foreground">{allIssuesQuery.data?.find((candidate) => candidate.id === (edge.target_issue_id === issue.id ? edge.source_issue_id : edge.target_issue_id))?.display_key ?? "linked issue"}</span></span>
+            <span><Badge variant="outline">{edge.edge_type.replaceAll("_", " ")}</Badge><span className="ml-2 font-mono text-muted-foreground">{allIssuesQuery.data?.find((candidate) => candidate.id === (edge.target_issue_id === issue.id ? edge.source_issue_id : edge.target_issue_id))?.display_key ?? "linked issue"}</span></span>
             <Button size="sm" variant="ghost" className="h-11 sm:h-7" onClick={() => removeEdgeMutation.mutate(edge.id)} disabled={removeEdgeMutation.isPending}>Remove</Button>
           </div>
         ))}
