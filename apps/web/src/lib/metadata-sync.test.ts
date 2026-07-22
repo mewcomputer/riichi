@@ -97,6 +97,8 @@ describe("issueFromSyncRecord", () => {
       lease_expires_at: null,
       created_at: "2026-01-01T00:00:00Z",
       updated_at: "2026-01-01T00:00:00Z",
+      due_date: null,
+      snoozed_until: null,
       rank: 1,
       dispatch_version: 1,
       assignee_account_id: null,

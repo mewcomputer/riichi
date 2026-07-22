@@ -381,6 +381,8 @@ pub(super) async fn update_issue(
                 rank: request.rank,
                 labels: request.labels,
                 assignee_account_id: request.assignee_account_id,
+                due_date: request.due_date,
+                snoozed_until: request.snoozed_until,
             },
             principal.account.id,
         )

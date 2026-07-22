@@ -980,6 +980,8 @@ struct UpdateIssueRequest {
     rank: Option<i64>,
     labels: Option<Vec<String>>,
     assignee_account_id: Option<Uuid>,
+    due_date: Option<Option<chrono::NaiveDate>>,
+    snoozed_until: Option<Option<chrono::NaiveDate>>,
 }
 
 #[derive(Debug, Deserialize)]

@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
@@ -59,6 +59,8 @@ pub struct HumanQueueIssueRecord {
     pub lease_expires_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    pub due_date: Option<NaiveDate>,
+    pub snoozed_until: Option<NaiveDate>,
     pub rank: i64,
     pub dispatch_version: i64,
     pub assignee_account_id: Option<Uuid>,
@@ -84,6 +86,8 @@ pub struct IssueRecord {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub completed_at: Option<DateTime<Utc>>,
+    pub due_date: Option<NaiveDate>,
+    pub snoozed_until: Option<NaiveDate>,
     pub rank: i64,
     pub rank_scope: String,
     pub dispatch_version: i64,
@@ -355,6 +359,8 @@ pub struct IssueUpdate {
     pub rank: Option<i64>,
     pub labels: Option<Vec<String>>,
     pub assignee_account_id: Option<Uuid>,
+    pub due_date: Option<Option<NaiveDate>>,
+    pub snoozed_until: Option<Option<NaiveDate>>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

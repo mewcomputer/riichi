@@ -27,6 +27,8 @@ struct IssueAuditSnapshot {
     spec_complete: bool,
     assignee_account_id: Option<Uuid>,
     rank: i64,
+    due_date: Option<chrono::NaiveDate>,
+    snoozed_until: Option<chrono::NaiveDate>,
     labels: Vec<String>,
 }
 
@@ -158,6 +160,21 @@ fn issue_change_summary(
     {
         changes
             .push(serde_json::json!({ "field": "labels", "from": snapshot.labels, "to": value }));
+    }
+    if let Some(value) = &update.due_date {
+        let value = value.map(|date| date.to_string());
+        let from = snapshot.due_date.map(|date| date.to_string());
+        if value != from {
+            changes.push(serde_json::json!({ "field": "due date", "from": from, "to": value }));
+        }
+    }
+    if let Some(value) = &update.snoozed_until {
+        let value = value.map(|date| date.to_string());
+        let from = snapshot.snoozed_until.map(|date| date.to_string());
+        if value != from {
+            changes
+                .push(serde_json::json!({ "field": "snoozed until", "from": from, "to": value }));
+        }
     }
     if let Some(value) = update.assignee_account_id
         && Some(value) != snapshot.assignee_account_id
@@ -453,6 +470,8 @@ impl Database {
                     i.created_at,
                     i.updated_at,
                     i.completed_at,
+                    i.due_date,
+                    i.snoozed_until,
                     d.rank,
                     d.rank_scope,
                     d.dispatch_version,
@@ -688,6 +707,8 @@ impl Database {
                     i.spec_complete,
                     i.assignee_account_id,
                     d.rank,
+                    i.due_date,
+                    i.snoozed_until,
                     COALESCE(array_agg(il.label ORDER BY il.label)
                         FILTER (WHERE il.label IS NOT NULL), ARRAY[]::text[]) AS labels
              FROM issues i
@@ -731,6 +752,8 @@ impl Database {
                      ELSE spec_reviewed_frontiers
                  END,
                  assignee_account_id = COALESCE($8, assignee_account_id),
+                 due_date = CASE WHEN $11 THEN $12 ELSE due_date END,
+                 snoozed_until = CASE WHEN $13 THEN $14 ELSE snoozed_until END,
                  version = version + 1,
                  updated_at = now(),
                  completed_at = CASE
@@ -750,6 +773,10 @@ impl Database {
         .bind(update.assignee_account_id)
         .bind(update.expected_version)
         .bind(reviewed_frontiers)
+        .bind(update.due_date.is_some())
+        .bind(update.due_date.flatten())
+        .bind(update.snoozed_until.is_some())
+        .bind(update.snoozed_until.flatten())
         .execute(&mut *tx)
         .await?
         .rows_affected();

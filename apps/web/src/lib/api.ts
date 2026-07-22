@@ -43,6 +43,8 @@ export type HumanQueueIssue = {
   lease_expires_at: string | null;
   created_at: string;
   updated_at: string;
+  due_date: string | null;
+  snoozed_until: string | null;
   rank: number;
   dispatch_version: number;
   assignee_account_id: string | null;
@@ -920,6 +922,8 @@ export function updateIssue(
     rank?: number;
     labels?: string[];
     assignee_account_id?: string | null;
+    due_date?: string | null;
+    snoozed_until?: string | null;
   },
 ) {
   return sendJsonWithHeaders<IssueRecord>(

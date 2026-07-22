@@ -27,11 +27,13 @@ export type IssueMetadataRecord = Pick<
   | "rank"
   | "labels"
   | "assignee_account_id"
+  | "due_date"
+  | "snoozed_until"
 > & { version: number; transaction_id: number };
 
 export type IssueMetadataChanges = Partial<Pick<
   IssueMetadataRecord,
-  "title" | "status" | "importance" | "agent_eligible" | "spec_complete" | "rank" | "labels" | "assignee_account_id"
+  "title" | "status" | "importance" | "agent_eligible" | "spec_complete" | "rank" | "labels" | "assignee_account_id" | "due_date" | "snoozed_until"
 >>;
 
 export type IssueMetadataCollection = Collection<IssueMetadataRecord>;
@@ -86,6 +88,8 @@ function mutationInput(changes: IssueMetadataChanges, expectedVersion: number) {
     ...(changes.rank === undefined ? {} : { rank: changes.rank }),
     ...(changes.labels === undefined ? {} : { labels: changes.labels }),
     ...(changes.assignee_account_id === undefined ? {} : { assignee_account_id: changes.assignee_account_id }),
+    ...(changes.due_date === undefined ? {} : { due_date: changes.due_date }),
+    ...(changes.snoozed_until === undefined ? {} : { snoozed_until: changes.snoozed_until }),
   };
 }
 
@@ -112,6 +116,8 @@ export async function updateIssueMetadata(
     if (changes.rank !== undefined) draft.rank = changes.rank;
     if (changes.labels !== undefined) draft.labels = changes.labels;
     if (changes.assignee_account_id !== undefined) draft.assignee_account_id = changes.assignee_account_id;
+    if (changes.due_date !== undefined) draft.due_date = changes.due_date;
+    if (changes.snoozed_until !== undefined) draft.snoozed_until = changes.snoozed_until;
   });
   await transaction.isPersisted.promise;
   return null;

@@ -22,6 +22,8 @@ export type QueueItem = {
   leaseExpiresAt: string | null;
   assigneeAccountId: string | null;
   labels: string[];
+  dueDate: string | null;
+  snoozedUntil: string | null;
 };
 
 export function groupQueueItemsByStatus(items: QueueItem[]) {
@@ -62,6 +64,7 @@ export function queueReason(issue: HumanQueueIssue) {
   if (issue.active_hold_count > 0) {
     return `${issue.active_hold_count} active hold${issue.active_hold_count === 1 ? "" : "s"}`;
   }
+  if (issue.snoozed_until) return `Snoozed until ${issue.snoozed_until}`;
   if (issue.unresolved_blocker_count > 0) {
     return `${issue.unresolved_blocker_count} unresolved blocker${issue.unresolved_blocker_count === 1 ? "" : "s"}`;
   }
@@ -129,5 +132,7 @@ export function toQueueItem(issue: HumanQueueIssue, now = new Date()): QueueItem
     leaseExpiresAt: issue.lease_expires_at,
     assigneeAccountId: issue.assignee_account_id,
     labels: issue.labels,
+    dueDate: issue.due_date,
+    snoozedUntil: issue.snoozed_until,
   };
 }

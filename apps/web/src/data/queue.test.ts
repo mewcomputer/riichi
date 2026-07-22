@@ -24,6 +24,8 @@ const baseIssue: HumanQueueIssue = {
   lease_expires_at: null,
   created_at: "2026-07-11T12:00:00.000Z",
   updated_at: "2026-07-11T12:00:00.000Z",
+  due_date: null,
+  snoozed_until: null,
   rank: 0,
   dispatch_version: 1,
   assignee_account_id: null,
@@ -45,6 +47,10 @@ describe("queue state mapping", () => {
     const issue = { ...baseIssue, agent_eligible: false, spec_complete: false };
     expect(deriveQueueState(issue)).toBe("ready");
     expect(queueReason(issue)).toBe("Spec needed");
+  });
+
+  it("preserves calendar due dates without timezone conversion", () => {
+    expect(toQueueItem({ ...baseIssue, due_date: "2026-07-21" }).dueDate).toBe("2026-07-21");
   });
 
   it("surfaces a changed specification as a review requirement", () => {

@@ -107,6 +107,8 @@ function IssueEditor({
   const [descriptionSchemaVersion, setDescriptionSchemaVersion] = useState(1);
   const [importance, setImportance] = useState(issue.importance);
   const [labels, setLabels] = useState(issue.labels);
+  const [dueDate, setDueDate] = useState(issue.due_date ?? "");
+  const [snoozedUntil, setSnoozedUntil] = useState(issue.snoozed_until ?? "");
   const [labelDraft, setLabelDraft] = useState("");
   const [specComplete, setSpecComplete] = useState(issue.spec_complete);
   const [syncConflict, setSyncConflict] = useState<IssueRecord | null>(null);
@@ -212,7 +214,7 @@ function IssueEditor({
   }, []);
   const issueMutationChain = useRef(Promise.resolve());
   const mutation = useMutation({
-    mutationFn: (input: { title?: string; status?: IssueRecord["status"]; importance?: IssueRecord["importance"]; spec_complete?: boolean; labels?: string[]; assignee_account_id?: string }) => {
+    mutationFn: (input: { title?: string; status?: IssueRecord["status"]; importance?: IssueRecord["importance"]; spec_complete?: boolean; labels?: string[]; assignee_account_id?: string; due_date?: string | null; snoozed_until?: string | null }) => {
       const request = issueMutationChain.current.then(async () => {
         return updateIssueMetadata(metadataCollection, projectId, issue.id, input);
       });
@@ -220,12 +222,14 @@ function IssueEditor({
       return request;
     },
     onMutate: (input) => {
-      const field = input.status ? "status" : input.importance ? "priority" : input.spec_complete !== undefined ? "specification" : input.labels ? "labels" : input.assignee_account_id ? "assignee" : "issue";
+      const field = input.status ? "status" : input.importance ? "priority" : input.spec_complete !== undefined ? "specification" : input.labels ? "labels" : input.assignee_account_id ? "assignee" : input.due_date !== undefined ? "due date" : input.snoozed_until !== undefined ? "snooze" : "issue";
       setPropertyFeedback({ state: "pending", message: `Saving ${field}…` });
     },
     onSuccess: (updated, input) => {
       if (input.assignee_account_id) setPropertyFeedback({ state: "confirmed", message: "Assigned to you. Server state is confirmed." });
       if (input.labels) setLabels(updated?.labels ?? input.labels);
+      if (input.due_date !== undefined) setDueDate(updated?.due_date ?? input.due_date ?? "");
+      if (input.snoozed_until !== undefined) setSnoozedUntil(updated?.snoozed_until ?? input.snoozed_until ?? "");
       if (input.status) setPropertyFeedback({ state: "confirmed", message: "Status updated. Server state is confirmed." });
       if (input.importance) setPropertyFeedback({ state: "confirmed", message: "Priority updated. Server state is confirmed." });
       if (input.spec_complete !== undefined) setPropertyFeedback({ state: "confirmed", message: "Specification state updated. Server state is confirmed." });
@@ -663,6 +667,8 @@ function IssueEditor({
           <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Assignee</span><div className="flex items-center gap-2"><span className="font-mono text-xs">{issue.assignee_account_id?.slice(0, 8) ?? "Unassigned"}</span>{accountId && issue.assignee_account_id !== accountId ? <Button size="sm" variant="outline" className="h-8" onClick={() => { setPropertyFeedback({ state: "pending", message: "Assigning to you…" }); mutation.mutate({ assignee_account_id: accountId }); }} disabled={mutation.isPending}>Assign to me</Button> : null}</div></div>
           <div className="grid gap-2"><div className="flex items-start justify-between gap-3"><span className="pt-0.5 text-muted-foreground">Labels</span>{labels.length > 0 ? <div className="flex flex-wrap justify-end gap-1">{labels.map((label) => <span key={label} className="inline-flex items-center gap-1"><Badge variant="secondary">{label}</Badge><button type="button" className="text-muted-foreground hover:text-destructive" aria-label={`Remove label ${label}`} onClick={() => { const next = labels.filter((current) => current !== label); setPropertyFeedback({ state: "pending", message: `Removing label ${label}…` }); mutation.mutate({ labels: next }); }} disabled={mutation.isPending}>×</button></span>)}</div> : <span className="text-muted-foreground/60">None</span>}</div><div className="flex gap-2"><Input aria-label="New label" value={labelDraft} onChange={(event) => setLabelDraft(event.target.value)} placeholder="Add label" className="h-8 text-xs" /><Button size="sm" variant="outline" className="h-8" onClick={() => { const nextLabel = labelDraft.trim(); if (!nextLabel || labels.includes(nextLabel)) return; setPropertyFeedback({ state: "pending", message: `Adding label ${nextLabel}…` }); setLabelDraft(""); mutation.mutate({ labels: [...labels, nextLabel] }); }} disabled={mutation.isPending || !labelDraft.trim()}>Add</Button></div></div>
           {propertyFeedback ? <p role={propertyFeedback.state === "rejected" ? "alert" : "status"} className={propertyFeedback.state === "rejected" ? "text-xs text-destructive" : propertyFeedback.state === "pending" ? "text-xs text-muted-foreground" : "text-xs text-emerald-400"}>{propertyFeedback.message}</p> : null}
+          <div className="flex items-center justify-between gap-3"><label htmlFor="issue-due-date" className="text-muted-foreground">Due date</label><div className="flex items-center gap-2"><Input id="issue-due-date" type="date" value={dueDate} onChange={(event) => { const next = event.target.value; setDueDate(next); mutation.mutate({ due_date: next || null }); }} disabled={mutation.isPending} className="h-8 w-36 text-xs" />{dueDate ? <Button size="sm" variant="ghost" className="h-8 px-2" onClick={() => { setDueDate(""); mutation.mutate({ due_date: null }); }} disabled={mutation.isPending}>Clear</Button> : null}</div></div>
+          <div className="flex items-center justify-between gap-3"><label htmlFor="issue-snooze-date" className="text-muted-foreground">Snooze until</label><div className="flex items-center gap-2"><Input id="issue-snooze-date" type="date" value={snoozedUntil} onChange={(event) => { const next = event.target.value; setSnoozedUntil(next); mutation.mutate({ snoozed_until: next || null }); }} disabled={mutation.isPending} className="h-8 w-36 text-xs" />{snoozedUntil ? <Button size="sm" variant="ghost" className="h-8 px-2" onClick={() => { setSnoozedUntil(""); mutation.mutate({ snoozed_until: null }); }} disabled={mutation.isPending}>Clear</Button> : null}</div></div>
         </div>
       </section>
         </aside>
