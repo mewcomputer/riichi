@@ -25,7 +25,7 @@ export function DecisionsTeaser() {
   return (
     <section
       id="decisions"
-      className="relative py-20 md:py-28 border-t border-border overflow-hidden"
+      className="relative py-20 md:py-28 overflow-hidden"
     >
       <div className="mx-auto max-w-[1440px] px-6 md:px-10">
         <div className="grid grid-cols-12 gap-6 md:gap-10 items-center">

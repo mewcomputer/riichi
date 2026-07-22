@@ -5,7 +5,7 @@ import { Reveal } from "./_/reveal";
 
 export function FAQ() {
   return (
-    <section id="faq" className="relative py-20 md:py-28 border-t border-border">
+    <section id="faq" className="relative py-20 md:py-28">
       <div className="mx-auto max-w-[1440px] px-6 md:px-10">
         <div className="grid grid-cols-12 gap-6 md:gap-10">
           <Reveal as="div" className="col-span-12 lg:col-span-4">

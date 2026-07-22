@@ -6,7 +6,7 @@ export function Principles() {
   return (
     <section
       id="principles"
-      className="relative py-20 md:py-28 border-t border-border"
+      className="relative py-20 md:py-28"
     >
       <div className="mx-auto max-w-[1440px] px-6 md:px-10">
         <Reveal>

@@ -17,7 +17,7 @@ const features = [
 
 export function Pricing() {
   return (
-    <section id="pricing" className="relative py-20 md:py-28 border-t border-border">
+    <section id="pricing" className="relative py-20 md:py-28">
       <div className="mx-auto max-w-[1440px] px-6 md:px-10">
         <Reveal>
           <div className="font-mono text-[10.5px] uppercase tracking-[0.16em] text-muted-foreground/60">

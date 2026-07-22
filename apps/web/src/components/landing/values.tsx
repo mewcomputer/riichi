@@ -27,7 +27,7 @@ const pillars = [
 
 export function Values() {
   return (
-    <section id="values" className="relative py-20 md:py-28 border-t border-border">
+    <section id="values" className="relative py-20 md:py-28">
       <div className="mx-auto max-w-[1440px] px-6 md:px-10">
         <Reveal>
           <h2 className="text-[clamp(36px,5.5vw,68px)] leading-[1.05] tracking-[-0.025em] font-medium max-w-[32ch]">
