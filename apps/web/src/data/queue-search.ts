@@ -6,6 +6,7 @@ export type QueueSearchState = {
   query: string;
   showDetails: boolean;
   advancedFilter: QueueAdvancedFilter;
+  peekIssueId?: string;
 };
 
 export type QueueFilterChip = {
@@ -53,6 +54,7 @@ export function parseQueueSearch(search: Record<string, unknown>): QueueSearchSt
       assignee: valueOr(search.assignee, queueAssignees, "all"),
       label: typeof search.label === "string" && search.label ? search.label : "all",
     },
+    ...(typeof search.peek === "string" && search.peek ? { peekIssueId: search.peek } : {}),
   };
 }
 
@@ -68,6 +70,7 @@ export function serializeQueueSearch(state: QueueSearchState) {
     ...(state.advancedFilter.projectId !== "all" ? { project: state.advancedFilter.projectId } : {}),
     ...(state.advancedFilter.assignee !== "all" ? { assignee: state.advancedFilter.assignee } : {}),
     ...(state.advancedFilter.label !== "all" ? { label: state.advancedFilter.label } : {}),
+    ...(state.peekIssueId ? { peek: state.peekIssueId } : {}),
   };
 }
 

@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { Link } from "@tanstack/react-router";
 import { useLiveQuery } from "@tanstack/react-db";
-import { Archive, CircleDot, Layers3, UserRound } from "lucide-react";
+import { Archive, CircleDot, ExternalLink, Layers3, UserRound, X } from "lucide-react";
 
 import { Kbd } from "@/components/ui/kbd";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,34 @@ import type { IssueImportance } from "../components/issues/issue-importance-menu
 import { organizationSlug as toOrganizationSlug } from "../lib/organization-slug";
 import { createIssueMetadataCollection, updateIssueMetadata } from "../lib/metadata-sync";
 
+function IssuePeek({ item, onClose, onExpand }: { item: ReturnType<typeof toQueueItem>; onClose: () => void; onExpand: () => void }) {
+  return (
+    <aside className="flex w-full shrink-0 flex-col border-t border-border/60 bg-background md:w-[360px] md:border-l md:border-t-0" aria-label="Issue preview">
+      <div className="flex items-start justify-between gap-3 border-b border-border/60 px-4 py-3">
+        <div className="min-w-0">
+          <p className="font-mono text-[10px] text-muted-foreground">{item.id}</p>
+          <h2 className="mt-1 text-sm font-medium leading-snug">{item.title}</h2>
+        </div>
+        <Button variant="ghost" size="icon" className="size-7 shrink-0" onClick={onClose} aria-label="Close issue preview"><X className="size-4" /></Button>
+      </div>
+      <div className="grid gap-3 overflow-auto p-4 text-xs">
+        <div className="grid grid-cols-2 gap-2">
+          <div><p className="text-muted-foreground">Status</p><p className="mt-1 font-medium">{item.status.replaceAll("_", " ")}</p></div>
+          <div><p className="text-muted-foreground">Priority</p><p className="mt-1 font-medium">{item.importance}</p></div>
+          <div><p className="text-muted-foreground">Project</p><p className="mt-1 font-medium">{item.projectName}</p></div>
+          <div><p className="text-muted-foreground">Age</p><p className="mt-1 font-medium">{item.age.replace(" in queue", "")}</p></div>
+        </div>
+        <div><p className="text-muted-foreground">Next action</p><p className="mt-1 rounded-md border border-border/60 bg-muted/20 p-2 text-foreground/80">{item.reason}</p></div>
+        {item.labels.length > 0 ? <div><p className="text-muted-foreground">Labels</p><p className="mt-1 text-foreground/80">{item.labels.join(" · ")}</p></div> : null}
+        <div className="flex flex-wrap gap-2 pt-2">
+          <Button size="sm" className="h-8" onClick={onExpand}><ExternalLink className="mr-1.5 size-3.5" />Expand issue <span className="ml-1 font-mono text-[10px]">E</span></Button>
+          <Button variant="outline" size="sm" className="h-8" onClick={onClose}>Back to queue <span className="ml-1 font-mono text-[10px]">Esc</span></Button>
+        </div>
+      </div>
+    </aside>
+  );
+}
+
 export function WorkspaceQueuePage() {
   const { organizationSlug } = useParams({ from: "/$organizationSlug/issues" });
   return <QueuePage organizationSlug={organizationSlug} />;
@@ -52,7 +80,7 @@ export function QueuePage({ initialFilter = "all", initialView = "all", teamId, 
     filter: parsedSearch.filter === "all" ? initialFilter : parsedSearch.filter,
     view: parsedSearch.view === "all" ? initialView : parsedSearch.view,
   }), [initialFilter, initialView, parsedSearch]);
-  const { filter, view, query, showDetails, advancedFilter } = searchState;
+  const { filter, view, query, showDetails, advancedFilter, peekIssueId } = searchState;
   const guided = rawSearch.guide === "1";
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
   const [selectedIssueIds, setSelectedIssueIds] = useState<Set<string>>(() => new Set());
@@ -63,9 +91,9 @@ export function QueuePage({ initialFilter = "all", initialView = "all", teamId, 
   const appLogout = useAppLogout();
   const queryClient = useQueryClient();
 
-  const updateSearch = (next: Partial<QueueSearchState>, replace = false) => {
+  const updateSearch = useCallback((next: Partial<QueueSearchState>, replace = false) => {
     void navigate({ replace, search: () => serializeQueueSearch({ ...searchState, ...next }) as never });
-  };
+  }, [navigate, searchState]);
   const shortcuts = useMemo(() => [
     { keys: ["c"], onTrigger: () => setCreateOpen(true) },
     { keys: ["g", "b"], onTrigger: () => updateSearch({ view: "backlog" }) },
@@ -103,7 +131,7 @@ export function QueuePage({ initialFilter = "all", initialView = "all", teamId, 
     },
   });
   const saveViewMutation = useMutation({
-    mutationFn: (name: string) => saveSavedView(name, serializeQueueSearch(searchState)),
+    mutationFn: (name: string) => saveSavedView(name, serializeQueueSearch({ ...searchState, peekIssueId: undefined })),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["saved-views"] }),
   });
   const deleteViewMutation = useMutation({
@@ -290,14 +318,20 @@ export function QueuePage({ initialFilter = "all", initialView = "all", teamId, 
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       if (target?.matches("input, textarea, select, [contenteditable='true']") || event.metaKey || event.ctrlKey || event.altKey) return;
-      if (!["j", "k", "ArrowDown", "ArrowUp", "Enter", "Escape"].includes(event.key)) return;
+      if (!["j", "k", "ArrowDown", "ArrowUp", "Enter", "Escape", "e", "E"].includes(event.key)) return;
       event.preventDefault();
       if (event.key === "Escape") {
         setSelectedIssueId(null);
+        updateSearch({ peekIssueId: undefined }, true);
         return;
       }
       if (event.key === "Enter") {
         const selected = visibleItems.find((item) => item.issueId === selectedIssueId);
+        if (selected) updateSearch({ peekIssueId: selected.issueId }, true);
+        return;
+      }
+      if (event.key.toLowerCase() === "e") {
+        const selected = visibleItems.find((item) => item.issueId === (peekIssueId ?? selectedIssueId));
         if (selected) {
           selectProject(selected.projectId);
           void navigate({ to: "/$organizationSlug/teams/$teamKey/issues/$issueId", params: { organizationSlug, teamKey: selected.teamKey, issueId: selected.issueId } });
@@ -310,7 +344,7 @@ export function QueuePage({ initialFilter = "all", initialView = "all", teamId, 
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [navigate, organizationSlug, selectProject, selectedIssueId, visibleItems]);
+  }, [navigate, organizationSlug, peekIssueId, selectProject, selectedIssueId, updateSearch, visibleItems]);
 
   const queueViews: ProjectViewTab[] = [
     { value: "all", label: "All issues", icon: Layers3 },
@@ -392,6 +426,7 @@ export function QueuePage({ initialFilter = "all", initialView = "all", teamId, 
       {selectedIssueIds.size > 0 ? <QueueBulkActionBar count={selectedIssueIds.size} labels={[...new Set(allItems.flatMap((item) => item.labels))].sort()} accountId={meQuery.data?.account_id} onSelectAll={() => setSelectedIssueIds(new Set(visibleItems.map((item) => item.issueId)))} onClear={() => setSelectedIssueIds(new Set())} onApply={(action) => void applyBulkAction(action)} /> : null}
       {bulkResult ? <QueueBulkResultSummary result={bulkResult} onDismiss={() => setBulkResult(null)} /> : null}
       <QueueFilterChips state={searchState} items={allItems} onChange={(next) => updateSearch(next, true)} />
+      <div className="flex min-h-0 flex-1 flex-col md:flex-row">
       <QueueList
         organizationSlug={organizationSlug}
         items={visibleItems}
@@ -406,13 +441,17 @@ export function QueuePage({ initialFilter = "all", initialView = "all", teamId, 
         authRequired={displayError instanceof ApiError && displayError.status === 401}
         onOpenIssue={(item) => {
           setSelectedIssueId(item.issueId);
-          selectProject(item.projectId);
-          void navigate({ to: "/$organizationSlug/teams/$teamKey/issues/$issueId", params: { organizationSlug, teamKey: item.teamKey, issueId: item.issueId } });
+          updateSearch({ peekIssueId: item.issueId }, true);
         }}
         onStatusChange={(item, status) => statusMutation.mutate({ item, status })}
         onImportanceChange={(item, importance) => importanceMutation.mutate({ item, importance })}
         onToggleSelection={(item, checked) => setSelectedIssueIds((current) => { const next = new Set(current); if (checked) next.add(item.issueId); else next.delete(item.issueId); return next; })}
       />
+      {peekIssueId ? (() => {
+        const peekItem = allItems.find((item) => item.issueId === peekIssueId);
+        return peekItem ? <IssuePeek item={peekItem} onClose={() => updateSearch({ peekIssueId: undefined }, true)} onExpand={() => { selectProject(peekItem.projectId); void navigate({ to: "/$organizationSlug/teams/$teamKey/issues/$issueId", params: { organizationSlug, teamKey: peekItem.teamKey, issueId: peekItem.issueId } }); }} /> : null;
+      })() : null}
+      </div>
       <LazyIssueCreateDialog
         open={createOpen}
         onOpenChange={setCreateOpen}

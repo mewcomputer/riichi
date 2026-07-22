@@ -38,6 +38,13 @@ describe("queue search state", () => {
     expect(serializeQueueSearch(state)).toEqual({ view: "my_work" });
   });
 
+  it("round-trips an issue peek without changing the saved filter state", () => {
+    const state = parseQueueSearch({ view: "my_work", peek: "issue-42" });
+    expect(state.peekIssueId).toBe("issue-42");
+    expect(serializeQueueSearch(state)).toEqual({ view: "my_work", peek: "issue-42" });
+    expect(serializeQueueSearch({ ...state, peekIssueId: undefined })).toEqual({ view: "my_work" });
+  });
+
   it("round-trips a named view's filter payload through the URL contract", () => {
     const state = parseQueueSearch({
       filter: "attention",

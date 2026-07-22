@@ -36,7 +36,10 @@ function QueueRow({ item, organizationSlug, selected, selectedForBulk, feedback,
         params={{ organizationSlug, teamKey: item.teamKey, issueId: item.issueId }}
         className="contents"
         aria-current={selected ? "true" : undefined}
-        onClick={() => onOpenIssue(item)}
+        onClick={(event) => {
+          event.preventDefault();
+          onOpenIssue(item);
+        }}
       >
         <div className="flex min-w-0 items-center gap-2">
           <span className="shrink-0 font-mono text-[10px] text-muted-foreground sm:hidden">{item.id}</span>
