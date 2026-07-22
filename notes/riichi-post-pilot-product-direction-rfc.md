@@ -423,10 +423,19 @@ shows that the gap is planning rather than basic visibility or time semantics.
   permissions: project views retain the existing filter object, are visible to
   project viewers, may be created by project members, and may be deleted by
   their owner or a project admin.
-- [ ] Specify the history event projection and actor/session presentation.
-- [ ] Specify the duplicate-resolution command and deprecated-issue behavior.
-- [ ] Define P0 baselines and exit thresholds for navigation, blocker
-  discovery, approval handling, and return-to-queue time.
+- [x] Specify the history event projection and actor/session presentation: the
+  existing `issue_activity_sync` read model remains authoritative, event kinds
+  map to stable human labels, and role/session enrichment is shown whenever it
+  is present in the activity payload.
+- [x] Specify the duplicate-resolution command and deprecated-issue behavior:
+  the existing typed `duplicate_of` command creates the link, the source is
+  deprecated, the target survives, and both records remain readable.
+- [x] Define P0 baselines and exit thresholds for navigation, blocker
+  discovery, approval handling, and return-to-queue time: capture partner
+  medians before rollout, require no regression in first-action time, target a
+  25% reduction in blocker/approval discovery time, and require the peek
+  contract to be completed without assistance by at least 80% of returning
+  users.
 
 ### P0 delivery
 
@@ -460,8 +469,8 @@ shows that the gap is planning rather than basic visibility or time semantics.
   snoozing?
 - Which canonical workflow categories are stable enough for agent commands and
   reporting?
-- Should duplicate merge create a surviving issue, a redirect, or a linked
-  resolution record?
+- Should duplicate resolution support an explicit, version-checked reversal
+  after the initial linked record is created?
 - Which template fields are copied as a snapshot, and which remain linked to
   the template?
 - What GitHub transitions are safe to automate, and which require approval?
