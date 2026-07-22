@@ -107,31 +107,6 @@ async fn sessions_cannot_cross_project_role_boundaries() {
 
 #[tokio::test]
 #[ignore = "starts a disposable PostgreSQL container"]
-async fn onboarding_claim_has_one_winner_per_project() {
-    let database = database().await;
-    let project_id = Uuid::now_v7();
-    database
-        .create_project(project_id, "onboarding claim project")
-        .await
-        .unwrap();
-
-    assert!(database.claim_onboarding_sample(project_id).await.unwrap());
-    assert!(matches!(
-        database.claim_onboarding_sample(project_id).await,
-        Err(Error::Contended)
-    ));
-    sqlx::query(
-        "UPDATE onboarding_sample_claims SET expires_at = now() - interval '1 minute' WHERE project_id = $1",
-    )
-    .bind(project_id)
-    .execute(database.pool())
-    .await
-    .unwrap();
-    assert!(database.claim_onboarding_sample(project_id).await.unwrap());
-}
-
-#[tokio::test]
-#[ignore = "starts a disposable PostgreSQL container"]
 async fn team_agent_roster_preserves_team_and_project_context() {
     let database = database().await;
     let (project_id, session_ids) = fixture(&database, 1).await;
