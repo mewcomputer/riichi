@@ -545,7 +545,6 @@ pub fn openapi_document_value() -> Value {
             ,"SaveViewRequest": {"type": "object", "required": ["name", "filters"], "properties": {"name": {"type": "string", "maxLength": 80}, "filters": {"type": "object"}}}
             ,"CreateAgentSessionRequest": {"type": "object", "properties": {"lifetime_seconds": {"type": "integer", "minimum": 60, "maximum": 86400}}}
             ,"CreateAgentSessionResponse": {"type": "object", "required": ["session_id", "agent_token", "expires_at"], "properties": {"session_id": {"type": "string", "format": "uuid"}, "agent_token": {"type": "string"}, "expires_at": {"type": "string", "format": "date-time"}}}
-            ,"CreateAgentRoleResponse": {"type": "object", "required": ["role_id"], "properties": {"role_id": {"type": "string", "format": "uuid"}}}
             ,"OnboardingSample": {"type": "object", "required": ["project_id", "role_id", "session_id", "triage_issue_id", "agent_issue_id", "recovery_issue_id", "approval_id", "recovery_checklist_id", "created_at"], "properties": {"project_id": {"type": "string", "format": "uuid"}, "role_id": {"type": "string", "format": "uuid"}, "session_id": {"type": "string", "format": "uuid"}, "triage_issue_id": {"type": "string", "format": "uuid"}, "agent_issue_id": {"type": "string", "format": "uuid"}, "recovery_issue_id": {"type": "string", "format": "uuid"}, "approval_id": {"type": "string", "format": "uuid"}, "recovery_checklist_id": {"type": "string", "format": "uuid"}, "created_at": {"type": "string", "format": "date-time"}}}
             ,"LoroFrontier": {"type": "object", "required": ["peer_id", "counter"], "properties": {"peer_id": {"type": "string"}, "counter": {"type": "integer", "format": "int32"}}}
             ,"ApplyLoroUpdateRequest": {"type": "object", "required": ["update_id", "previous_frontiers", "payload_base64"], "properties": {"schema_version": {"type": ["integer", "null"]}, "update_id": {"type": "string", "format": "uuid"}, "idempotency_key": {"type": ["string", "null"]}, "previous_frontiers": {"type": "array", "items": {"$ref": "#/components/schemas/LoroFrontier"}}, "payload_base64": {"type": "string"}}}
@@ -604,7 +603,7 @@ pub fn openapi_document_value() -> Value {
         "operationId": "createAgentRole",
         "parameters": [{"name": "project_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}],
         "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CreateAgentRoleRequest"}}}},
-        "responses": {"200": {"description": "Created agent role", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CreateAgentRoleResponse"}}}}}
+        "responses": {"204": {"description": "Agent role created"}}
     });
     document["components"]["schemas"]["CreateAgentRoleRequest"] = json!({
         "type": "object",
@@ -1068,11 +1067,6 @@ struct CreateAgentRoleRequest {
     owner_account_id: Option<Uuid>,
     #[serde(default = "default_agent_capabilities")]
     capabilities: Vec<String>,
-}
-
-#[derive(Debug, Serialize)]
-struct CreateAgentRoleResponse {
-    role_id: Uuid,
 }
 
 #[derive(Debug, Deserialize)]

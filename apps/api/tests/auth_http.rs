@@ -364,26 +364,49 @@ async fn configured_api_supports_oidc_cookie_project_and_invite_round_trip() {
             .await
             .unwrap();
     assert_eq!(onboarding_count, 1);
+    let session_id = Uuid::parse_str(onboarding_body["session_id"].as_str().unwrap()).unwrap();
+    let triage_issue_id =
+        Uuid::parse_str(onboarding_body["triage_issue_id"].as_str().unwrap()).unwrap();
+    let agent_issue_id =
+        Uuid::parse_str(onboarding_body["agent_issue_id"].as_str().unwrap()).unwrap();
+    let recovery_issue_id =
+        Uuid::parse_str(onboarding_body["recovery_issue_id"].as_str().unwrap()).unwrap();
     let onboarding_audit_count: i64 = sqlx::query_scalar(
-        "SELECT count(*) FROM audit_records WHERE project_id = $1 AND operation IN ('claim', 'report_batch', 'takeover_issue', 'create_approval_request')",
+        "SELECT count(*) FROM audit_records
+         WHERE project_id = $1
+           AND target_id IN ($2, $3, $4)
+           AND operation IN ('claim', 'report_batch', 'takeover_issue', 'create_approval_request')",
     )
     .bind(Uuid::parse_str(project_id).unwrap())
+    .bind(agent_issue_id)
+    .bind(recovery_issue_id)
+    .bind(triage_issue_id)
     .fetch_one(database.pool())
     .await
     .unwrap();
     assert!(onboarding_audit_count >= 5);
     let onboarding_outbox_count: i64 = sqlx::query_scalar(
-        "SELECT count(*) FROM outbox_messages WHERE project_id = $1 AND message_type IN ('issue_changed', 'lease_changed')",
+        "SELECT count(*) FROM outbox_messages
+         WHERE project_id = $1
+           AND message_type IN ('issue_changed', 'lease_changed')
+           AND (payload ->> 'issue_id')::uuid IN ($2, $3, $4)",
     )
     .bind(Uuid::parse_str(project_id).unwrap())
+    .bind(triage_issue_id)
+    .bind(agent_issue_id)
+    .bind(recovery_issue_id)
     .fetch_one(database.pool())
     .await
     .unwrap();
     assert!(onboarding_outbox_count >= 8);
     let onboarding_idempotency_count: i64 = sqlx::query_scalar(
-        "SELECT count(*) FROM idempotency_records WHERE project_id = $1 AND operation IN ('claim', 'report_batch')",
+        "SELECT count(*) FROM idempotency_records
+         WHERE project_id = $1 AND actor_id = $2
+           AND operation IN ('claim', 'report_batch')
+           AND idempotency_key IN ('onboarding-agent-claim', 'onboarding-agent-report', 'onboarding-recovery-claim')",
     )
     .bind(Uuid::parse_str(project_id).unwrap())
+    .bind(session_id)
     .fetch_one(database.pool())
     .await
     .unwrap();

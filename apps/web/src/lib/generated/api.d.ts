@@ -1312,10 +1312,6 @@ export interface components {
             /** Format: uuid */
             owner_account_id?: string | null;
         };
-        CreateAgentRoleResponse: {
-            /** Format: uuid */
-            role_id: string;
-        };
         CreateAgentSessionRequest: {
             lifetime_seconds?: number;
         };
@@ -2206,14 +2202,12 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Created agent role */
-            200: {
+            /** @description Agent role created */
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["CreateAgentRoleResponse"];
-                };
+                content?: never;
             };
         };
     };

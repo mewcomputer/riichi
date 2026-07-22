@@ -260,18 +260,6 @@
         ],
         "type": "object"
       },
-      "CreateAgentRoleResponse": {
-        "properties": {
-          "role_id": {
-            "format": "uuid",
-            "type": "string"
-          }
-        },
-        "required": [
-          "role_id"
-        ],
-        "type": "object"
-      },
       "CreateAgentSessionRequest": {
         "properties": {
           "lifetime_seconds": {
@@ -1267,15 +1255,8 @@
           "required": true
         },
         "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CreateAgentRoleResponse"
-                }
-              }
-            },
-            "description": "Created agent role"
+          "204": {
+            "description": "Agent role created"
           }
         }
       }
