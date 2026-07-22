@@ -399,6 +399,20 @@ shows that the gap is planning rather than basic visibility or time semantics.
   `timestamptz`. Date-only values render without timezone conversion. If
   hour-level due dates become necessary, add a separate `due_at` timestamp
   rather than converting existing calendar dates to midnight UTC.
+- P1 time work starts with due dates, then snoozing. Start dates wait for
+  evidence that they solve a distinct problem.
+- Workflow aliases are presentation labels over canonical lifecycle
+  categories. The mapping is versioned, historical issues retain the version
+  that applied to them, and the schema allows new canonical categories later
+  without changing the agent protocol or silently reclassifying old history.
+  The first release may ship a bounded alias set before teams define their
+  own.
+- Templates copy their operational fields as a snapshot and retain the
+  producing template version for provenance. Existing issues do not stay
+  linked to later template edits, and recurrence remains deferred.
+- Subscriptions start as personal, narrow subscriptions for approvals, lease
+  expiry, blocked dependencies, and quarantine creation. Notifications link
+  directly to the actionable issue or control.
 
 ## 11. Implementation checklist
 
@@ -409,6 +423,12 @@ shows that the gap is planning rather than basic visibility or time semantics.
 - [x] Establish the first explicit history event taxonomy and event fields.
 - [x] Define duplicate deprecation as a linked, reviewable resolution.
 - [x] Define date-only and timestamp storage/display semantics.
+- [x] Decide P1 time ordering: due dates before snoozing, with start dates
+  evidence-gated.
+- [x] Define extensible, versioned workflow aliases over canonical lifecycle
+  categories.
+- [x] Decide that templates snapshot operational fields and subscriptions start
+  as personal, narrow, actionable notifications.
 
 ### P0 implementation preparation
 
@@ -465,14 +485,8 @@ shows that the gap is planning rather than basic visibility or time semantics.
 
 - Who may define admin defaults, and can a project opt out?
 - Which view notifications are useful enough to avoid notification fatigue?
-- Which daily date features should ship first: due dates, start dates, or
-  snoozing?
-- Which canonical workflow categories are stable enough for agent commands and
-  reporting?
 - Should duplicate resolution support an explicit, version-checked reversal
   after the initial linked record is created?
-- Which template fields are copied as a snapshot, and which remain linked to
-  the template?
 - What GitHub transitions are safe to automate, and which require approval?
 - What baseline and threshold should the pilot use for the three-team planning
   feature gate?
