@@ -364,6 +364,30 @@ async fn configured_api_supports_oidc_cookie_project_and_invite_round_trip() {
             .await
             .unwrap();
     assert_eq!(onboarding_count, 1);
+    let onboarding_audit_count: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM audit_records WHERE project_id = $1 AND operation IN ('claim', 'report_batch', 'takeover_issue', 'create_approval_request')",
+    )
+    .bind(Uuid::parse_str(project_id).unwrap())
+    .fetch_one(database.pool())
+    .await
+    .unwrap();
+    assert!(onboarding_audit_count >= 5);
+    let onboarding_outbox_count: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM outbox_messages WHERE project_id = $1 AND message_type IN ('issue_changed', 'lease_changed')",
+    )
+    .bind(Uuid::parse_str(project_id).unwrap())
+    .fetch_one(database.pool())
+    .await
+    .unwrap();
+    assert!(onboarding_outbox_count >= 8);
+    let onboarding_idempotency_count: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM idempotency_records WHERE project_id = $1 AND operation IN ('claim', 'report_batch')",
+    )
+    .bind(Uuid::parse_str(project_id).unwrap())
+    .fetch_one(database.pool())
+    .await
+    .unwrap();
+    assert_eq!(onboarding_idempotency_count, 3);
     let mut repeat_onboarding = request(
         Method::POST,
         &format!("/api/v1/projects/{project_id}/onboarding-sample"),

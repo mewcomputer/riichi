@@ -1040,7 +1040,7 @@ impl Database {
     }
 }
 
-fn issue_description_content(body: &str) -> serde_json::Value {
+pub(crate) fn issue_description_content(body: &str) -> serde_json::Value {
     if body.is_empty() {
         serde_json::json!({"type": "doc", "content": []})
     } else {
@@ -1051,7 +1051,7 @@ fn issue_description_content(body: &str) -> serde_json::Value {
     }
 }
 
-fn issue_description_html(body: &str) -> String {
+pub(crate) fn issue_description_html(body: &str) -> String {
     format!("<p>{}</p>", html_escape(body))
 }
 
