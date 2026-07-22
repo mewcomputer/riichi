@@ -478,7 +478,7 @@ shows that the gap is planning rather than basic visibility or time semantics.
 - [x] Add versioned issue templates before considering recurrence.
 - [x] Add actionable subscriptions after view permissions and query stability
   are proven.
-- [ ] Add project overview and richer GitHub workflow integration after P0 is
+- [x] Add project overview and richer GitHub workflow integration after P0 is
   routinely used.
 
 ## 12. Open questions for review

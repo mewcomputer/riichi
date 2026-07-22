@@ -38,6 +38,7 @@ mod github;
 mod issues;
 mod navigation;
 mod onboarding;
+mod overview;
 mod p1;
 mod projects;
 mod views;
@@ -51,6 +52,7 @@ use github::*;
 use issues::*;
 use navigation::*;
 use onboarding::*;
+use overview::*;
 use p1::*;
 use projects::*;
 use views::*;
@@ -152,6 +154,7 @@ fn app_with_optional_auth_and_electric_url_and_attachment_store(
             get(human_avatar).put(upload_human_avatar).delete(delete_human_avatar),
         )
         .route("/api/v1/navigation", get(navigation))
+        .route("/api/v1/projects/{project_id}/overview", get(project_overview))
         .route(
             "/api/v1/projects/{project_id}/workflow-aliases",
             get(list_workflow_aliases).put(save_workflow_aliases),
@@ -377,6 +380,22 @@ fn app_with_optional_auth_and_electric_url_and_attachment_store(
         .route(
             "/api/v1/projects/{project_id}/integrations/github/import",
             post(import_github_issues),
+        )
+        .route(
+            "/api/v1/projects/{project_id}/integrations/github",
+            get(get_github_integration).put(set_github_integration),
+        )
+        .route(
+            "/api/v1/projects/{project_id}/integrations/github/pull-requests/refresh",
+            post(refresh_github_pull_requests),
+        )
+        .route(
+            "/api/v1/projects/{project_id}/integrations/github/pull-requests",
+            get(github_pull_requests),
+        )
+        .route(
+            "/api/v1/projects/{project_id}/integrations/github/pull-requests/{pull_request_id}/link",
+            post(link_github_pull_request),
         )
         .route("/api/v1/projects", post(create_project))
         .route(
@@ -660,6 +679,7 @@ const DOCUMENTED_ROUTE_SURFACE: &[(&str, &str)] = &[
     ("/api/v1/organizations/{organization_id}/logo", "delete"),
     ("/api/v1/approvals", "get"),
     ("/api/v1/projects/{project_id}/events", "get"),
+    ("/api/v1/projects/{project_id}/overview", "get"),
     ("/api/v1/projects/{project_id}/sync/issues", "get"),
     ("/api/v1/sync/issues", "get"),
     ("/api/v1/sync/documents", "get"),
@@ -731,6 +751,20 @@ const DOCUMENTED_ROUTE_SURFACE: &[(&str, &str)] = &[
     ),
     (
         "/api/v1/projects/{project_id}/integrations/github/import",
+        "post",
+    ),
+    ("/api/v1/projects/{project_id}/integrations/github", "get"),
+    ("/api/v1/projects/{project_id}/integrations/github", "put"),
+    (
+        "/api/v1/projects/{project_id}/integrations/github/pull-requests",
+        "get",
+    ),
+    (
+        "/api/v1/projects/{project_id}/integrations/github/pull-requests/refresh",
+        "post",
+    ),
+    (
+        "/api/v1/projects/{project_id}/integrations/github/pull-requests/{pull_request_id}/link",
         "post",
     ),
     ("/api/v1/projects", "post"),
@@ -1077,6 +1111,29 @@ struct GithubImportResponse {
     imported: usize,
     pull_requests_skipped: usize,
     issue_numbers: Vec<i64>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GithubPullRequestRefreshRequest {
+    repository: String,
+    max_pull_requests: Option<usize>,
+}
+
+#[derive(Debug, Serialize)]
+struct GithubPullRequestRefreshResponse {
+    repository: String,
+    imported: usize,
+}
+
+#[derive(Debug, Deserialize)]
+struct GithubPullRequestLinkRequest {
+    issue_id: Option<Uuid>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GithubIntegrationRequest {
+    repository: String,
+    enabled: bool,
 }
 
 #[derive(Debug, Serialize)]

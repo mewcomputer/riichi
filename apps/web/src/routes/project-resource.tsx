@@ -6,7 +6,7 @@ import { ProjectHeader } from "@/components/project/project-header";
 import { ProjectShell } from "@/components/project/project-shell";
 import { ProjectSidebar } from "@/components/project/project-sidebar";
 import { Button } from "@/components/ui/button";
-import { createProjectDocument, getCurrentUser, listProjectDocuments } from "@/lib/api";
+import { createProjectDocument, getCurrentUser, getGithubPullRequests, getProjectOverview, listProjectDocuments } from "@/lib/api";
 import { useActiveProject } from "@/hooks/use-active-project";
 import { useAppLogout } from "@/hooks/use-app-logout";
 import { useNavigation } from "@/hooks/use-navigation";
@@ -30,6 +30,16 @@ export function ProjectResourcePage() {
   const documentsQuery = useQuery({
     queryKey: ["project-documents", project?.id],
     queryFn: () => listProjectDocuments(project!.id),
+    enabled: Boolean(project),
+  });
+  const overviewQuery = useQuery({
+    queryKey: ["project-overview", project?.id],
+    queryFn: () => getProjectOverview(project!.id),
+    enabled: Boolean(project),
+  });
+  const githubPullRequestsQuery = useQuery({
+    queryKey: ["github-pull-requests", project?.id],
+    queryFn: () => getGithubPullRequests(project!.id),
     enabled: Boolean(project),
   });
   const createDocumentMutation = useMutation({
@@ -98,6 +108,26 @@ export function ProjectResourcePage() {
           <p className="max-w-xl text-sm text-muted-foreground">Project documentation, notes, and working context for {project.name}.</p>
           <p className="text-xs text-muted-foreground">Your role: {project.role}{activeMembership?.project_id === project.id ? " · active project" : ""}</p>
         </header>
+        <section className="grid gap-4 border-y border-border/60 py-6">
+          <div><h2 className="text-sm font-medium">Operational overview</h2><p className="mt-1 text-xs text-muted-foreground">Observable project state from issues, leases, holds, approvals, and recent activity.</p></div>
+          {overviewQuery.isPending ? <p className="text-xs text-muted-foreground">Loading project state…</p> : null}
+          {overviewQuery.error ? <p role="alert" className="text-xs text-destructive">Could not load the overview: {overviewQuery.error.message}</p> : null}
+          {overviewQuery.data ? <>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+              {[["Moving", overviewQuery.data.summary.moving_count], ["Blocked", overviewQuery.data.summary.blocked_count], ["Needs human", overviewQuery.data.summary.needs_human_count], ["Agent-owned", overviewQuery.data.summary.agent_handling_count], ["Due soon", overviewQuery.data.summary.due_soon_count]].map(([label, count]) => <div key={label} className="rounded-md border border-border/60 bg-card/20 p-3"><p className="text-[11px] text-muted-foreground">{label}</p><p className="mt-1 text-xl font-medium tabular-nums">{count}</p></div>)}
+            </div>
+            <div className="grid gap-4 lg:grid-cols-2">
+              {(["blocked", "needs_human", "agent_handling", "unowned", "due_soon"] as const).map((category) => {
+                const items = overviewQuery.data!.issues.filter((issue) => issue.category === category).slice(0, 5);
+                if (!items.length) return null;
+                const label = category.replace("_", " ");
+                return <div key={category} className="grid gap-2"><h3 className="text-xs font-medium capitalize text-muted-foreground">{label}</h3>{items.map((issue) => <Link key={issue.id} to="/$organizationSlug/teams/$teamKey/issues/$issueId" params={{ organizationSlug, teamKey: team.key, issueId: issue.id }} className="rounded-md border border-border/60 px-3 py-2 text-xs hover:bg-muted/30"><div className="flex items-center justify-between gap-3"><span className="font-mono text-muted-foreground">{issue.display_key}</span><span className="capitalize text-muted-foreground">{issue.status.replaceAll("_", " ")}</span></div><p className="mt-1 truncate">{issue.title}</p></Link>)}</div>;
+              })}
+            </div>
+            {overviewQuery.data.recent_changes.length ? <div className="grid gap-2"><h3 className="text-xs font-medium text-muted-foreground">Recent changes</h3>{overviewQuery.data.recent_changes.slice(0, 8).map((change) => <div key={change.id} className="flex items-center justify-between gap-3 text-xs"><span className="truncate">{change.operation.replaceAll("_", " ")} {change.issue_display_key ? `· ${change.issue_display_key}` : ""}</span><time className="shrink-0 text-muted-foreground" dateTime={change.created_at}>{new Date(change.created_at).toLocaleDateString()}</time></div>)}</div> : null}
+          </> : null}
+        </section>
+        {githubPullRequestsQuery.data?.length ? <section className="grid gap-3 border-y border-border/60 py-6"><div><h2 className="text-sm font-medium">GitHub pull requests</h2><p className="mt-1 text-xs text-muted-foreground">Read-only review and CI state from the configured GitHub integration.</p></div><div className="grid gap-2">{githubPullRequestsQuery.data.slice(0, 10).map((pull) => { const headSha = typeof pull.payload.pull_request === "object" && pull.payload.pull_request && "head" in pull.payload.pull_request && typeof pull.payload.pull_request.head === "object" && pull.payload.pull_request.head && "sha" in pull.payload.pull_request.head && typeof pull.payload.pull_request.head.sha === "string" ? pull.payload.pull_request.head.sha : null; return <a key={pull.id} href={pull.url} target="_blank" rel="noreferrer" className="rounded-md border border-border/60 px-3 py-2 text-xs hover:bg-muted/30"><div className="flex items-center justify-between gap-3"><span className="font-mono text-muted-foreground">{pull.repository}#{pull.pull_request_number}</span><span className="capitalize text-muted-foreground">{pull.state}</span></div><p className="mt-1 truncate">{pull.title}</p><div className="mt-2 flex flex-wrap gap-2 text-[11px] text-muted-foreground"><span>Review: {pull.review_state ?? "unknown"}</span><span>CI: {pull.ci_state ?? "unknown"}</span>{headSha ? <span>Commit: {headSha.slice(0, 8)}</span> : null}</div></a>; })}</div></section> : null}
         <section className="grid gap-3 border-y border-border/60 py-6">
           <div className="flex items-start justify-between gap-4">
             <div>

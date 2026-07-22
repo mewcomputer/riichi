@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 
-import { ApiError, getCurrentUser, importGithubIssues } from "@/lib/api";
+import { ApiError, getCurrentUser, getGithubIntegration, importGithubIssues, refreshGithubPullRequests, setGithubIntegration } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,13 +23,22 @@ export function IntegrationsPage() {
   const navigationQuery = useNavigation();
   const { activeMembership, projectId, selectProject } = useActiveProject(meQuery.data?.memberships);
   const projectName = activeMembership?.project_name ?? "riichi";
+  const integrationQuery = useQuery({ queryKey: ["github-integration", projectId], queryFn: () => getGithubIntegration(projectId!), enabled: Boolean(projectId) });
+  useEffect(() => { if (integrationQuery.data?.repository && !repository) setRepository(integrationQuery.data.repository); }, [integrationQuery.data, repository]);
   const importMutation = useMutation({
     mutationFn: () => importGithubIssues(projectId!, {
       repository: repository.trim(),
       max_issues: Number(maxIssues),
     }),
   });
-  const error = meQuery.error ?? importMutation.error;
+  const pullRequestMutation = useMutation({
+    mutationFn: () => refreshGithubPullRequests(projectId!, { repository: repository.trim(), max_pull_requests: Number(maxIssues) }),
+  });
+  const integrationMutation = useMutation({
+    mutationFn: () => setGithubIntegration(projectId!, { repository: repository.trim(), enabled: true }),
+    onSuccess: () => void integrationQuery.refetch(),
+  });
+  const error = meQuery.error ?? importMutation.error ?? pullRequestMutation.error;
 
   return (
     <ProjectShell sidebar={<ProjectSidebar projectName={projectName} navigation={navigationQuery.data} memberships={meQuery.data?.memberships} activeProjectId={projectId} onProjectChange={selectProject} onLogout={appLogout} avatarUrl={meQuery.data?.avatar_url} onSearch={() => undefined} onNavigate={(label) => {
@@ -52,10 +61,13 @@ export function IntegrationsPage() {
             <label className="grid w-28 gap-1.5 text-xs text-muted-foreground">Max issues
               <Input aria-label="Maximum issues" type="number" min="1" max="1000" value={maxIssues} onChange={(event) => setMaxIssues(event.target.value)} className="h-8 text-xs" />
             </label>
-            <Button size="sm" onClick={() => importMutation.mutate()} disabled={importMutation.isPending || !repository.trim()}>Import</Button>
+            <Button size="sm" variant="outline" onClick={() => integrationMutation.mutate()} disabled={integrationMutation.isPending || !repository.trim()}>Save integration</Button>
+            <Button size="sm" onClick={() => importMutation.mutate()} disabled={importMutation.isPending || pullRequestMutation.isPending || !repository.trim()}>Import</Button>
+            <Button size="sm" variant="outline" onClick={() => pullRequestMutation.mutate()} disabled={importMutation.isPending || pullRequestMutation.isPending || !repository.trim()}>Refresh PRs</Button>
           </div>
           {error ? <span className="text-xs text-destructive">{error instanceof ApiError && error.status === 401 ? "Sign in with an admin project membership." : error.message}</span> : null}
           {importMutation.data ? <div className="flex items-center gap-2 text-xs"><Badge variant="secondary">{importMutation.data.imported} imported</Badge><Badge variant="outline">{importMutation.data.pull_requests_skipped} pull requests skipped</Badge></div> : null}
+          {pullRequestMutation.data ? <Badge variant="secondary">{pullRequestMutation.data.imported} pull requests refreshed</Badge> : null}
         </section>
       </main>
     </ProjectShell>

@@ -149,6 +149,89 @@ impl GithubClient {
             pull_requests_skipped,
         })
     }
+
+    pub async fn import_pull_requests(
+        &self,
+        repository: &str,
+        token: &str,
+        max_pull_requests: usize,
+    ) -> Result<Vec<serde_json::Value>, ClientError> {
+        validate_repository(repository)?;
+        if !(1..=MAX_IMPORT_ISSUES).contains(&max_pull_requests) {
+            return Err(ClientError::InvalidImportLimit);
+        }
+        let response = self
+            .http
+            .get(format!("{}/repos/{repository}/pulls", self.base_url))
+            .query(&[
+                ("state", "all"),
+                ("per_page", max_pull_requests.to_string().as_str()),
+            ])
+            .header(reqwest::header::ACCEPT, "application/vnd.github+json")
+            .header(reqwest::header::USER_AGENT, "riichi-pilot")
+            .bearer_auth(token)
+            .send()
+            .await
+            .map_err(ClientError::Request)?;
+        if !response.status().is_success() {
+            return Err(ClientError::HttpStatus(response.status()));
+        }
+        let pulls = response
+            .json::<Vec<serde_json::Value>>()
+            .await
+            .map_err(ClientError::Request)?;
+        let mut snapshots = Vec::with_capacity(pulls.len().min(max_pull_requests));
+        for pull in pulls.into_iter().take(max_pull_requests) {
+            let Some(number) = pull.get("number").and_then(serde_json::Value::as_i64) else {
+                continue;
+            };
+            let reviews = self
+                .get_json(
+                    format!(
+                        "{}/repos/{repository}/pulls/{number}/reviews",
+                        self.base_url
+                    ),
+                    token,
+                )
+                .await?;
+            let checks = pull
+                .get("head")
+                .and_then(|head| head.get("sha"))
+                .and_then(serde_json::Value::as_str)
+                .map(|sha| async move {
+                    self.get_json(
+                        format!(
+                            "{}/repos/{repository}/commits/{sha}/check-runs",
+                            self.base_url
+                        ),
+                        token,
+                    )
+                    .await
+                });
+            let checks = match checks {
+                Some(future) => future.await?,
+                None => serde_json::json!({"check_runs": []}),
+            };
+            snapshots.push(serde_json::json!({ "pull_request": pull, "reviews": reviews, "checks": checks, "trust": "external_untrusted" }));
+        }
+        Ok(snapshots)
+    }
+
+    async fn get_json(&self, url: String, token: &str) -> Result<serde_json::Value, ClientError> {
+        let response = self
+            .http
+            .get(url)
+            .header(reqwest::header::ACCEPT, "application/vnd.github+json")
+            .header(reqwest::header::USER_AGENT, "riichi-pilot")
+            .bearer_auth(token)
+            .send()
+            .await
+            .map_err(ClientError::Request)?;
+        if !response.status().is_success() {
+            return Err(ClientError::HttpStatus(response.status()));
+        }
+        response.json().await.map_err(ClientError::Request)
+    }
 }
 
 fn validate_repository(repository: &str) -> Result<(), ClientError> {

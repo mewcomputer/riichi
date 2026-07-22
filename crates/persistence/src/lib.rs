@@ -14,6 +14,7 @@ mod notifications;
 mod onboarding;
 mod organization;
 mod outbox;
+mod project_overview;
 mod reports;
 mod sessions;
 mod subscriptions;
@@ -51,6 +52,8 @@ pub use models::{
     DeliveryEventRecord, DispatchHoldRecord as DispatchHold, DocumentJobRecord as DocumentJob,
     DocumentRecord as Document, DocumentReferenceRecord as DocumentReference,
     DocumentVersionRecord as DocumentVersion, ExternalIssueRecord,
+    GithubProjectIntegrationRecord as GithubProjectIntegration,
+    GithubPullRequestRecord as GithubPullRequest,
     GlobalApprovalRequestRecord as GlobalApprovalRequest, HumanQueueIssueRecord as HumanQueueIssue,
     IssueCreate, IssueEdgeRecord as IssueEdge, IssueProjectRecord, IssueRecord,
     IssueSeed as NewIssue, IssueSubscriptionRecord as IssueSubscription,
@@ -64,6 +67,7 @@ pub use models::{
 };
 pub use onboarding::OnboardingSampleRecord;
 pub use organization::NavigationRow;
+pub use project_overview::{ProjectOverviewChange, ProjectOverviewIssue, ProjectOverviewSummary};
 pub use views::SavedViewRecord;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

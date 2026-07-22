@@ -2,6 +2,148 @@ use super::*;
 use sha2::{Digest, Sha256};
 
 impl Database {
+    pub async fn github_project_integration(
+        &self,
+        project_id: Uuid,
+    ) -> Result<Option<models::GithubProjectIntegrationRecord>, Error> {
+        Ok(sqlx::query_as::<_, models::GithubProjectIntegrationRecord>(
+            "SELECT project_id, repository, enabled, configured_by, created_at, updated_at
+             FROM github_project_integrations WHERE project_id = $1",
+        )
+        .bind(project_id)
+        .fetch_optional(&self.pool)
+        .await?)
+    }
+
+    pub async fn set_github_project_integration(
+        &self,
+        project_id: Uuid,
+        account_id: Uuid,
+        repository: &str,
+        enabled: bool,
+    ) -> Result<models::GithubProjectIntegrationRecord, Error> {
+        Ok(sqlx::query_as::<_, models::GithubProjectIntegrationRecord>(
+            "INSERT INTO github_project_integrations (project_id, repository, enabled, configured_by)
+             VALUES ($1, $2, $3, $4)
+             ON CONFLICT (project_id) DO UPDATE SET repository = EXCLUDED.repository,
+                 enabled = EXCLUDED.enabled, configured_by = EXCLUDED.configured_by, updated_at = now()
+             RETURNING project_id, repository, enabled, configured_by, created_at, updated_at",
+        )
+        .bind(project_id)
+        .bind(repository)
+        .bind(enabled)
+        .bind(account_id)
+        .fetch_one(&self.pool)
+        .await?)
+    }
+
+    pub async fn upsert_github_pull_request_snapshot(
+        &self,
+        project_id: Uuid,
+        issue_id: Option<Uuid>,
+        repository: &str,
+        pull_request_number: i64,
+        url: &str,
+        title: &str,
+        state: &str,
+        review_state: Option<&str>,
+        ci_state: Option<&str>,
+        external_updated_at: Option<&str>,
+        payload: serde_json::Value,
+    ) -> Result<models::GithubPullRequestRecord, Error> {
+        let id = sqlx::query_scalar::<_, Uuid>(
+            "INSERT INTO github_pull_request_snapshots
+             (id, project_id, issue_id, repository, pull_request_number, title, url, state, review_state, ci_state, payload, external_updated_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+             ON CONFLICT (project_id, repository, pull_request_number)
+             DO UPDATE SET issue_id = COALESCE(EXCLUDED.issue_id, github_pull_request_snapshots.issue_id),
+                           title = EXCLUDED.title, url = EXCLUDED.url, state = EXCLUDED.state,
+                           review_state = EXCLUDED.review_state, ci_state = EXCLUDED.ci_state,
+                           payload = EXCLUDED.payload, external_updated_at = EXCLUDED.external_updated_at,
+                           fetched_at = now()
+             RETURNING id",
+        )
+        .bind(Uuid::now_v7())
+        .bind(project_id)
+        .bind(issue_id)
+        .bind(repository)
+        .bind(pull_request_number)
+        .bind(title)
+        .bind(url)
+        .bind(state)
+        .bind(review_state)
+        .bind(ci_state)
+        .bind(payload)
+        .bind(external_updated_at)
+        .fetch_one(&self.pool)
+        .await?;
+        sqlx::query_as::<_, models::GithubPullRequestRecord>(
+            "SELECT id, project_id, issue_id, repository, pull_request_number, title, url, state,
+                    review_state, ci_state, payload, external_updated_at, fetched_at
+             FROM github_pull_request_snapshots WHERE id = $1",
+        )
+        .bind(id)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(Into::into)
+    }
+
+    pub async fn github_pull_requests(
+        &self,
+        project_id: Uuid,
+        limit: i64,
+    ) -> Result<Vec<models::GithubPullRequestRecord>, Error> {
+        Ok(sqlx::query_as::<_, models::GithubPullRequestRecord>(
+            "SELECT id, project_id, issue_id, repository, pull_request_number, title, url, state,
+                    review_state, ci_state, payload, external_updated_at, fetched_at
+             FROM github_pull_request_snapshots WHERE project_id = $1
+             ORDER BY fetched_at DESC, id DESC LIMIT $2",
+        )
+        .bind(project_id)
+        .bind(limit.clamp(1, 100))
+        .fetch_all(&self.pool)
+        .await?)
+    }
+
+    pub async fn link_github_pull_request(
+        &self,
+        project_id: Uuid,
+        pull_request_id: Uuid,
+        issue_id: Option<Uuid>,
+    ) -> Result<models::GithubPullRequestRecord, Error> {
+        if let Some(issue_id) = issue_id {
+            let valid = sqlx::query_scalar::<_, bool>(
+                "SELECT EXISTS (SELECT 1 FROM issues WHERE id = $1 AND project_id = $2)",
+            )
+            .bind(issue_id)
+            .bind(project_id)
+            .fetch_one(&self.pool)
+            .await?;
+            if !valid {
+                return Err(PersistenceError::IssueNotFound);
+            }
+        }
+        sqlx::query(
+            "UPDATE github_pull_request_snapshots SET issue_id = $3
+             WHERE id = $1 AND project_id = $2",
+        )
+        .bind(pull_request_id)
+        .bind(project_id)
+        .bind(issue_id)
+        .execute(&self.pool)
+        .await?;
+        sqlx::query_as::<_, models::GithubPullRequestRecord>(
+            "SELECT id, project_id, issue_id, repository, pull_request_number, title, url, state,
+                    review_state, ci_state, payload, external_updated_at, fetched_at
+             FROM github_pull_request_snapshots WHERE id = $1 AND project_id = $2",
+        )
+        .bind(pull_request_id)
+        .bind(project_id)
+        .fetch_optional(&self.pool)
+        .await?
+        .ok_or(PersistenceError::IssueNotFound)
+    }
+
     pub async fn record_github_delivery(
         &self,
         delivery_id: &str,

@@ -541,6 +541,33 @@ pub struct ExternalIssueRecord {
 }
 
 #[derive(Debug, Clone, Serialize, FromRow)]
+pub struct GithubPullRequestRecord {
+    pub id: Uuid,
+    pub project_id: Uuid,
+    pub issue_id: Option<Uuid>,
+    pub repository: String,
+    pub pull_request_number: i64,
+    pub title: String,
+    pub url: String,
+    pub state: String,
+    pub review_state: Option<String>,
+    pub ci_state: Option<String>,
+    pub payload: serde_json::Value,
+    pub external_updated_at: Option<String>,
+    pub fetched_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, FromRow)]
+pub struct GithubProjectIntegrationRecord {
+    pub project_id: Uuid,
+    pub repository: String,
+    pub enabled: bool,
+    pub configured_by: Uuid,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, FromRow)]
 pub struct AgentRoleRecord {
     pub id: Uuid,
     pub project_id: Uuid,

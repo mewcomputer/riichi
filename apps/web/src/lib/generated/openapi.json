@@ -1413,9 +1413,57 @@
         }
       }
     },
+    "/api/v1/projects/{project_id}/integrations/github": {
+      "get": {
+        "operationId": "get_api_v1_projects__project_id__integrations_github",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      },
+      "put": {
+        "operationId": "put_api_v1_projects__project_id__integrations_github",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
     "/api/v1/projects/{project_id}/integrations/github/import": {
       "post": {
         "operationId": "post_api_v1_projects__project_id__integrations_github_import",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/integrations/github/pull-requests": {
+      "get": {
+        "operationId": "get_api_v1_projects__project_id__integrations_github_pull-requests",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/integrations/github/pull-requests/refresh": {
+      "post": {
+        "operationId": "post_api_v1_projects__project_id__integrations_github_pull-requests_refresh",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/integrations/github/pull-requests/{pull_request_id}/link": {
+      "post": {
+        "operationId": "post_api_v1_projects__project_id__integrations_github_pull-requests__pull_request_id__link",
         "responses": {
           "200": {
             "description": "Successful response"
@@ -1655,6 +1703,16 @@
     "/api/v1/projects/{project_id}/outbox/{message_id}/redrive": {
       "post": {
         "operationId": "post_api_v1_projects__project_id__outbox__message_id__redrive",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/overview": {
+      "get": {
+        "operationId": "get_api_v1_projects__project_id__overview",
         "responses": {
           "200": {
             "description": "Successful response"
