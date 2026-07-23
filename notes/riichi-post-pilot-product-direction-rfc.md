@@ -488,5 +488,7 @@ shows that the gap is planning rather than basic visibility or time semantics.
 - Should duplicate resolution support an explicit, version-checked reversal
   after the initial linked record is created?
 - What GitHub transitions are safe to automate, and which require approval?
+- Project deletion should be intentionally difficult: require typing the exact
+  team name and project name before the destructive action is enabled.
 - What baseline and threshold should the pilot use for the three-team planning
   feature gate?

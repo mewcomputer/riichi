@@ -737,6 +737,9 @@ mod tests {
                 display_name: None,
                 last_completed_nux_version: None,
                 last_completed_nux_at: None,
+                theme_mode: "system".to_owned(),
+                light_theme: "catppuccin-latte".to_owned(),
+                dark_theme: "default".to_owned(),
             },
             memberships: vec![HumanMembership {
                 project_id: Uuid::new_v4(),

@@ -12,6 +12,9 @@ export type HumanMe = {
   display_name: string | null;
   last_completed_nux_version: string | null;
   last_completed_nux_at: string | null;
+  theme_mode: "system" | "light" | "dark";
+  light_theme: string;
+  dark_theme: string;
   avatar_url: string | null;
   memberships: HumanMembership[];
   teams: Array<{
@@ -475,7 +478,7 @@ async function sendJsonWithHeaders<T>(
   return { data: (await response.json()) as T, response };
 }
 
-async function sendNoContent(path: string, method: "POST" | "PATCH" | "DELETE" = "POST", body?: unknown): Promise<void> {
+async function sendNoContent(path: string, method: "POST" | "PATCH" | "PUT" | "DELETE" = "POST", body?: unknown): Promise<void> {
   const response = await fetch(`${getApiBaseUrl()}${path}`, {
     method,
     credentials: "include",
@@ -503,6 +506,10 @@ export function getCurrentUser() {
 
 export function completeNux(version: string) {
   return sendNoContent("/api/v1/auth/me/nux", "POST", { version });
+}
+
+export function updateThemePreferences(input: { mode: "system" | "light" | "dark"; light_theme: string; dark_theme: string }) {
+  return sendNoContent("/api/v1/auth/me/theme", "PUT", input);
 }
 
 export async function getNavigation() {
@@ -962,6 +969,10 @@ export function updateTeamEmoji(teamId: string, emoji: string | null) {
 
 export function updateProjectIcon(projectId: string, icon: string | null) {
   return sendNoContent(`/api/v1/projects/${encodeURIComponent(projectId)}`, "PATCH", { icon });
+}
+
+export function deleteProject(projectId: string, input: { team_name: string; project_name: string }) {
+  return sendNoContent(`/api/v1/projects/${encodeURIComponent(projectId)}`, "DELETE", input);
 }
 
 export function createInvite(

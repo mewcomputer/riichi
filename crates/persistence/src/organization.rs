@@ -137,6 +137,122 @@ impl Database {
         Ok(())
     }
 
+    pub async fn delete_project(
+        &self,
+        account_id: Uuid,
+        project_id: Uuid,
+        team_name: &str,
+        project_name: &str,
+    ) -> Result<bool, Error> {
+        let mut tx = self.pool.begin().await?;
+        let confirmed = sqlx::query_scalar::<_, bool>(
+            "SELECT EXISTS (
+                 SELECT 1
+                 FROM projects p
+                 JOIN project_teams pt ON pt.project_id = p.id
+                 JOIN teams t ON t.id = pt.team_id
+                 WHERE p.id = $1
+                   AND p.name = $2
+                   AND t.name = $3
+                   AND (
+                       EXISTS (
+                           SELECT 1
+                           FROM project_memberships pm
+                           WHERE pm.project_id = p.id
+                             AND pm.account_id = $4
+                             AND pm.role IN ('owner', 'admin')
+                             AND pm.revoked_at IS NULL
+                       )
+                       OR EXISTS (
+                           SELECT 1
+                           FROM team_memberships tm
+                           JOIN organization_memberships om
+                             ON om.organization_id = t.organization_id
+                            AND om.account_id = tm.account_id
+                           WHERE tm.team_id = t.id
+                             AND tm.account_id = $4
+                             AND tm.role IN ('owner', 'admin')
+                             AND tm.revoked_at IS NULL
+                             AND om.revoked_at IS NULL
+                       )
+                   )
+             )",
+        )
+        .bind(project_id)
+        .bind(project_name)
+        .bind(team_name)
+        .bind(account_id)
+        .fetch_one(&mut *tx)
+        .await?;
+        if !confirmed {
+            return Ok(false);
+        }
+
+        sqlx::query(
+            "CREATE TEMP TABLE project_delete_issues ON COMMIT DROP AS
+             SELECT id FROM issues WHERE project_id = $1",
+        )
+        .bind(project_id)
+        .execute(&mut *tx)
+        .await?;
+
+        for statement in [
+            "DELETE FROM onboarding_samples WHERE project_id = $1",
+            "DELETE FROM onboarding_sample_claims WHERE project_id = $1",
+            "DELETE FROM issue_subscriptions WHERE project_id = $1",
+            "DELETE FROM issue_template_instances WHERE issue_id IN (SELECT id FROM project_delete_issues)",
+            "DELETE FROM issue_metadata_sync WHERE issue_id IN (SELECT id FROM project_delete_issues)",
+            "DELETE FROM issue_activity_sync WHERE issue_id IN (SELECT id FROM project_delete_issues)",
+            "DELETE FROM human_issue_sync WHERE issue_id IN (SELECT id FROM project_delete_issues)",
+            "DELETE FROM approval_sync WHERE issue_id IN (SELECT id FROM project_delete_issues)",
+            "DELETE FROM quarantined_attempts WHERE project_id = $1",
+            "DELETE FROM recovery_checklists WHERE project_id = $1",
+            "DELETE FROM approval_requests WHERE project_id = $1",
+            "DELETE FROM notifications WHERE project_id = $1 OR issue_id IN (SELECT id FROM project_delete_issues)",
+            "DELETE FROM external_links WHERE project_id = $1",
+            "DELETE FROM github_pull_request_snapshots WHERE project_id = $1",
+            "DELETE FROM issue_labels WHERE project_id = $1",
+            "DELETE FROM issue_projects WHERE project_id = $1",
+            "DELETE FROM dispatch_holds WHERE issue_id IN (SELECT id FROM project_delete_issues)",
+            "DELETE FROM comments WHERE project_id = $1",
+            "DELETE FROM issue_edges WHERE project_id = $1",
+            "DELETE FROM lease_collaborators WHERE lease_id IN (SELECT id FROM leases WHERE issue_id IN (SELECT id FROM project_delete_issues))",
+            "DELETE FROM leases WHERE issue_id IN (SELECT id FROM project_delete_issues)",
+            "DELETE FROM issue_dispatch WHERE issue_id IN (SELECT id FROM project_delete_issues)",
+            "DELETE FROM issues WHERE project_id = $1",
+            "DELETE FROM human_agent_sync WHERE agent_role_id IN (SELECT id FROM agent_roles WHERE project_id = $1)",
+            "DELETE FROM sessions WHERE project_id = $1",
+            "DELETE FROM agent_roles WHERE project_id = $1",
+            "DELETE FROM delivery_events WHERE project_id = $1",
+            "DELETE FROM webhook_deliveries WHERE project_id = $1",
+            "DELETE FROM outbox_messages WHERE project_id = $1",
+            "DELETE FROM audit_records WHERE project_id = $1",
+            "DELETE FROM idempotency_records WHERE project_id = $1",
+            "DELETE FROM project_invites WHERE project_id = $1",
+            "DELETE FROM project_memberships WHERE project_id = $1",
+            "DELETE FROM project_teams WHERE project_id = $1",
+            "DELETE FROM documents WHERE owner_project_id = $1",
+            "DELETE FROM github_project_integrations WHERE project_id = $1",
+            "DELETE FROM workflow_aliases WHERE project_id = $1",
+            "DELETE FROM workflow_alias_versions WHERE project_id = $1",
+            "DELETE FROM issue_templates WHERE project_id = $1",
+        ] {
+            sqlx::query(statement)
+                .bind(project_id)
+                .execute(&mut *tx)
+                .await?;
+        }
+
+        let deleted = sqlx::query("DELETE FROM projects WHERE id = $1")
+            .bind(project_id)
+            .execute(&mut *tx)
+            .await?
+            .rows_affected()
+            == 1;
+        tx.commit().await?;
+        Ok(deleted)
+    }
+
     pub async fn project_belongs_to_team(
         &self,
         project_id: Uuid,

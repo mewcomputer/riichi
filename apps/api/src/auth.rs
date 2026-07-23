@@ -178,6 +178,9 @@ pub(super) async fn human_me(
         display_name: principal.account.display_name,
         last_completed_nux_version: principal.account.last_completed_nux_version,
         last_completed_nux_at: principal.account.last_completed_nux_at,
+        theme_mode: principal.account.theme_mode,
+        light_theme: principal.account.light_theme,
+        dark_theme: principal.account.dark_theme,
         avatar_url: state
             .application
             .database()
@@ -205,6 +208,29 @@ pub(super) async fn human_me(
             })
             .collect(),
     }))
+}
+
+pub(super) async fn update_theme(
+    State(state): State<AppState>,
+    jar: CookieJar,
+    Json(request): Json<UpdateThemeRequest>,
+) -> Result<StatusCode, ApiError> {
+    let principal = human_principal(&state, &jar).await?;
+    if !state
+        .application
+        .database()
+        .update_theme_preferences(
+            principal.account.id,
+            &request.mode,
+            &request.light_theme,
+            &request.dark_theme,
+        )
+        .await
+        .map_err(ApiError::from)?
+    {
+        return Err(ApiError::NotFound);
+    }
+    Ok(StatusCode::NO_CONTENT)
 }
 
 #[derive(Debug, Deserialize)]

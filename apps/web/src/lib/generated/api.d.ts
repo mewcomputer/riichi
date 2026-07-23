@@ -148,6 +148,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/me/theme": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["updateThemePreferences"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/claim": {
         parameters: {
             query?: never;
@@ -543,7 +559,7 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete?: never;
+        delete: operations["deleteProject"];
         options?: never;
         head?: never;
         patch: operations["patch_api_v1_projects__project_id_"];
@@ -1554,6 +1570,10 @@ export interface components {
             /** Format: uuid */
             session_id: string;
         };
+        DeleteProjectRequest: {
+            project_name: string;
+            team_name: string;
+        };
         InboxResponse: {
             notifications: components["schemas"]["Notification"][];
             /** Format: int64 */
@@ -1678,6 +1698,12 @@ export interface components {
         UnreadCountResponse: {
             /** Format: int64 */
             unread_count: number;
+        };
+        UpdateThemeRequest: {
+            dark_theme: string;
+            light_theme: string;
+            /** @enum {string} */
+            mode: "system" | "light" | "dark";
         };
     };
     responses: never;
@@ -1892,6 +1918,28 @@ export interface operations {
         responses: {
             /** @description Successful response */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateThemePreferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateThemeRequest"];
+            };
+        };
+        responses: {
+            /** @description Theme preferences updated */
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2490,6 +2538,30 @@ export interface operations {
         responses: {
             /** @description Successful response */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    deleteProject: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeleteProjectRequest"];
+            };
+        };
+        responses: {
+            /** @description Project deleted */
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };

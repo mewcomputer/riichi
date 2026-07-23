@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 
@@ -7,8 +8,19 @@ import { ProjectShell } from "@/components/project/project-shell";
 import { ProjectSidebar } from "@/components/project/project-sidebar";
 import { ProjectIconEditor } from "@/components/project/project-icon-editor";
 import { ProjectMark } from "@/components/project/project-mark";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { createProjectDocument, getCurrentUser, getGithubPullRequests, getProjectOverview, listProjectDocuments } from "@/lib/api";
+import { Input } from "@/components/ui/input";
+import { createProjectDocument, deleteProject, getCurrentUser, getGithubPullRequests, getProjectOverview, listProjectDocuments } from "@/lib/api";
 import { useActiveProject } from "@/hooks/use-active-project";
 import { useAppLogout } from "@/hooks/use-app-logout";
 import { useNavigation } from "@/hooks/use-navigation";
@@ -20,6 +32,9 @@ export function ProjectResourcePage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const appLogout = useAppLogout();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteTeamName, setDeleteTeamName] = useState("");
+  const [deleteProjectName, setDeleteProjectName] = useState("");
   const meQuery = useQuery({ queryKey: ["auth", "me"], queryFn: getCurrentUser, retry: false });
   const navigationQuery = useNavigation();
   const syncedDocuments = useHumanDocuments();
@@ -51,6 +66,15 @@ export function ProjectResourcePage() {
       to: "/$organizationSlug/documents/$documentId",
       params: { organizationSlug, documentId: document.id },
     }),
+  });
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteProject(project!.id, { team_name: deleteTeamName, project_name: deleteProjectName }),
+    onSuccess: async () => {
+      window.localStorage.removeItem("riichi.activeProjectId");
+      await queryClient.invalidateQueries({ queryKey: ["navigation"] });
+      setDeleteDialogOpen(false);
+      void navigate({ to: "/$organizationSlug/issues", params: { organizationSlug } });
+    },
   });
   const projectDocuments = syncedDocuments?.filter((document) => document.owner_project_id === project?.id) ?? documentsQuery.data;
 
@@ -109,7 +133,8 @@ export function ProjectResourcePage() {
             </Link>
           </div>
           <p className="max-w-xl text-sm text-muted-foreground">Project documentation, notes, and working context for {project.name}.</p>
-          <div className="flex items-center justify-between gap-4"><p className="text-xs text-muted-foreground">Your role: {project.role}{activeMembership?.project_id === project.id ? " · active project" : ""}</p><ProjectIconEditor project={project} canManage={project.role === "owner" || project.role === "admin"} onSaved={() => void queryClient.invalidateQueries({ queryKey: ["navigation"] })} /></div>
+          <div className="flex items-center justify-between gap-4"><p className="text-xs text-muted-foreground">Your role: {project.role}{activeMembership?.project_id === project.id ? " · active project" : ""}</p><div className="flex items-center gap-2"><ProjectIconEditor project={project} canManage={project.role === "owner" || project.role === "admin"} onSaved={() => void queryClient.invalidateQueries({ queryKey: ["navigation"] })} />{project.role === "owner" || project.role === "admin" ? <Button type="button" variant="destructive" size="sm" onClick={() => { deleteMutation.reset(); setDeleteTeamName(""); setDeleteProjectName(""); setDeleteDialogOpen(true); }}>Delete project</Button> : null}</div></div>
+          {deleteMutation.error ? <p role="alert" className="text-xs text-destructive">Could not delete the project: {deleteMutation.error.message}</p> : null}
         </header>
         <section className="grid gap-4 border-y border-border/60 py-6">
           <div><h2 className="text-sm font-medium">Operational overview</h2><p className="mt-1 text-xs text-muted-foreground">Observable project state from issues, leases, holds, approvals, and recent activity.</p></div>
@@ -157,6 +182,30 @@ export function ProjectResourcePage() {
           ) : <div className="rounded-md border border-dashed border-border/70 px-4 py-5 text-xs text-muted-foreground">No documents yet.</div>}
         </section>
       </main>
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {project.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently deletes the project, its issues, documents, and agent history. Type the exact team and project names to continue.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="grid gap-3">
+            <label className="grid gap-1.5 text-xs font-medium">Team name<Input value={deleteTeamName} onChange={(event) => setDeleteTeamName(event.target.value)} placeholder={team.name} autoComplete="off" /></label>
+            <label className="grid gap-1.5 text-xs font-medium">Project name<Input value={deleteProjectName} onChange={(event) => setDeleteProjectName(event.target.value)} placeholder={project.name} autoComplete="off" /></label>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={deleteMutation.isPending || deleteTeamName !== team.name || deleteProjectName !== project.name}
+              onClick={() => deleteMutation.mutate()}
+            >
+              {deleteMutation.isPending ? "Deleting…" : "Delete project"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </ProjectShell>
   );
 }

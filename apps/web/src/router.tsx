@@ -37,7 +37,27 @@ const integrationsRoute = createRoute({
 const settingsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/$organizationSlug/settings',
-  component: lazyRouteComponent(() => import('./routes/settings'), 'SettingsPage'),
+  component: lazyRouteComponent(() => import('./routes/settings-profile'), 'SettingsProfilePage'),
+})
+const settingsOverviewRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/$organizationSlug/settings/overview',
+  component: lazyRouteComponent(() => import('./routes/settings'), 'SettingsOverviewPage'),
+})
+const settingsProfileRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/$organizationSlug/settings/profile',
+  component: lazyRouteComponent(() => import('./routes/settings-profile'), 'SettingsProfilePage'),
+})
+const settingsOrganizationRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/$organizationSlug/settings/organization',
+  component: lazyRouteComponent(() => import('./routes/settings-organization'), 'SettingsOrganizationPage'),
+})
+const settingsProjectRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/$organizationSlug/settings/project',
+  component: lazyRouteComponent(() => import('./routes/settings-project'), 'SettingsProjectPage'),
 })
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -97,7 +117,7 @@ const organizationDocumentsRoute = createRoute({
   component: lazyRouteComponent(() => import('./routes/organization-documents'), 'OrganizationDocumentsPage'),
 })
 
-const routeTree = rootRoute.addChildren([landingRoute, queueRoute, triageRoute, teamResourceRoute, projectResourceRoute, teamSettingsRoute, teamIssuesRoute, onboardingRoute, organizationDocumentsRoute, documentRoute, issueDetailRoute, legacyIssueDetailRoute, agentsRoute, integrationsRoute, settingsRoute, loginRoute, approvalsRoute, inboxRoute])
+const routeTree = rootRoute.addChildren([landingRoute, queueRoute, triageRoute, teamResourceRoute, projectResourceRoute, teamSettingsRoute, teamIssuesRoute, onboardingRoute, organizationDocumentsRoute, documentRoute, issueDetailRoute, legacyIssueDetailRoute, agentsRoute, integrationsRoute, settingsRoute, settingsOverviewRoute, settingsProfileRoute, settingsOrganizationRoute, settingsProjectRoute, loginRoute, approvalsRoute, inboxRoute])
 
 export const router = createRouter({ routeTree })
 

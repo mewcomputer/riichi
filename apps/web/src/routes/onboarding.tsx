@@ -16,7 +16,8 @@ export function OnboardingPage() {
   const [projectName, setProjectName] = useState("");
   const projectMutation = useMutation({
     mutationFn: () => createProject(projectName.trim()),
-    onSuccess: () => {
+    onSuccess: ({ project_id }) => {
+      window.localStorage.setItem("riichi.activeProjectId", project_id);
       void queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
       void queryClient.invalidateQueries({ queryKey: ["navigation"] });
       void navigate({ to: "/$organizationSlug/issues", params: { organizationSlug: toOrganizationSlug(navigationQuery.data?.organizations[0]?.name ?? "Riichi") }, replace: true });

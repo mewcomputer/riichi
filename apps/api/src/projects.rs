@@ -14,6 +14,30 @@ pub(super) async fn create_project(
     Ok(Json(CreateProjectResponse { project_id }))
 }
 
+pub(super) async fn delete_project(
+    State(state): State<AppState>,
+    Path(project_id): Path<Uuid>,
+    jar: CookieJar,
+    Json(request): Json<DeleteProjectRequest>,
+) -> Result<StatusCode, ApiError> {
+    let principal = human_principal(&state, &jar).await?;
+    let deleted = state
+        .application
+        .database()
+        .delete_project(
+            principal.account.id,
+            project_id,
+            &request.team_name,
+            &request.project_name,
+        )
+        .await
+        .map_err(ApiError::from)?;
+    if !deleted {
+        return Err(ApiError::ProjectActionDenied);
+    }
+    Ok(StatusCode::NO_CONTENT)
+}
+
 pub(super) async fn create_invite(
     State(state): State<AppState>,
     Path(project_id): Path<Uuid>,

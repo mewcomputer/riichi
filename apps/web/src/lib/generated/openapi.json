@@ -324,6 +324,21 @@
         ],
         "type": "object"
       },
+      "DeleteProjectRequest": {
+        "properties": {
+          "project_name": {
+            "type": "string"
+          },
+          "team_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "team_name",
+          "project_name"
+        ],
+        "type": "object"
+      },
       "InboxResponse": {
         "properties": {
           "notifications": {
@@ -761,6 +776,30 @@
           "unread_count"
         ],
         "type": "object"
+      },
+      "UpdateThemeRequest": {
+        "properties": {
+          "dark_theme": {
+            "type": "string"
+          },
+          "light_theme": {
+            "type": "string"
+          },
+          "mode": {
+            "enum": [
+              "system",
+              "light",
+              "dark"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode",
+          "light_theme",
+          "dark_theme"
+        ],
+        "type": "object"
       }
     }
   },
@@ -900,6 +939,26 @@
         "responses": {
           "200": {
             "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/me/theme": {
+      "put": {
+        "operationId": "updateThemePreferences",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateThemeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Theme preferences updated"
           }
         }
       }
@@ -1366,6 +1425,35 @@
       }
     },
     "/api/v1/projects/{project_id}": {
+      "delete": {
+        "operationId": "deleteProject",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteProjectRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Project deleted"
+          }
+        }
+      },
       "patch": {
         "operationId": "patch_api_v1_projects__project_id_",
         "responses": {

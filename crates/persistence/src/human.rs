@@ -222,7 +222,8 @@ impl Database {
     pub async fn human_account(&self, account_id: Uuid) -> Result<Option<HumanAccount>, Error> {
         let account = sqlx::query_as::<_, HumanAccount>(
             "SELECT id, issuer, subject, email, display_name,
-                    last_completed_nux_version, last_completed_nux_at
+                    last_completed_nux_version, last_completed_nux_at,
+                    theme_mode, light_theme, dark_theme
              FROM human_accounts WHERE id = $1",
         )
         .bind(account_id)
@@ -241,12 +242,67 @@ impl Database {
              SET last_completed_nux_version = $2, last_completed_nux_at = now(), updated_at = now()
              WHERE id = $1
              RETURNING id, issuer, subject, email, display_name,
-                       last_completed_nux_version, last_completed_nux_at",
+                       last_completed_nux_version, last_completed_nux_at,
+                       theme_mode, light_theme, dark_theme",
         )
         .bind(account_id)
         .bind(version)
         .fetch_optional(&self.pool)
         .await?)
+    }
+
+    pub async fn update_theme_preferences(
+        &self,
+        account_id: Uuid,
+        mode: &str,
+        light_theme: &str,
+        dark_theme: &str,
+    ) -> Result<bool, Error> {
+        const THEME_IDS: &[&str] = &[
+            "default",
+            "catppuccin-latte",
+            "catppuccin-frappe",
+            "catppuccin-macchiato",
+            "catppuccin-mocha",
+            "evergarden-fall",
+            "evergarden-spring",
+            "evergarden-summer",
+            "evergarden-winter",
+            "rose-pine",
+            "rose-pine-moon",
+            "rose-pine-dawn",
+            "tokyo-night",
+            "tokyo-night-storm",
+            "tokyo-night-light",
+            "ayu-dark",
+            "ayu-mirage",
+            "ayu-light",
+            "nord",
+            "gruvbox-dark",
+            "github-dark",
+            "dracula",
+        ];
+        if !matches!(mode, "system" | "light" | "dark")
+            || !THEME_IDS.contains(&light_theme)
+            || !THEME_IDS.contains(&dark_theme)
+        {
+            return Err(Error::InvalidIssue(
+                "theme preference is invalid".to_owned(),
+            ));
+        }
+        Ok(sqlx::query(
+            "UPDATE human_accounts
+             SET theme_mode = $2, light_theme = $3, dark_theme = $4, updated_at = now()
+             WHERE id = $1",
+        )
+        .bind(account_id)
+        .bind(mode)
+        .bind(light_theme)
+        .bind(dark_theme)
+        .execute(&self.pool)
+        .await?
+        .rows_affected()
+            == 1)
     }
 
     pub async fn create_project_membership(

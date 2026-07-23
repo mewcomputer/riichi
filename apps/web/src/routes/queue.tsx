@@ -129,7 +129,11 @@ export function QueuePage({ initialFilter = "all", initialView = "all", teamId, 
     onSuccess: (issue) => {
       setCreateOpen(false);
       void queryClient.invalidateQueries({ queryKey: ["issues", "all"] });
-      void navigate({ to: "/$organizationSlug/teams/$teamKey/issues/$issueId", params: { organizationSlug, teamKey: issue.team_key, issueId: issue.id } });
+      const teamKey = navigationQuery.data?.organizations
+        .flatMap((organization) => organization.teams)
+        .find((team) => team.id === issue.team_id)?.key;
+      if (!teamKey) return;
+      void navigate({ to: "/$organizationSlug/teams/$teamKey/issues/$issueId", params: { organizationSlug, teamKey, issueId: issue.id } });
     },
   });
   const saveViewMutation = useMutation({

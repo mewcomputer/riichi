@@ -153,6 +153,7 @@ fn app_with_optional_auth_and_electric_url_and_attachment_store(
         .route("/api/v1/auth/cli-login", post(create_cli_login))
         .route("/api/v1/auth/cli-login/{token}/exchange", post(exchange_cli_login))
         .route("/api/v1/auth/me/nux", post(complete_nux))
+        .route("/api/v1/auth/me/theme", put(update_theme))
         .route(
             "/api/v1/auth/me/avatar",
             get(human_avatar).put(upload_human_avatar).delete(delete_human_avatar),
@@ -259,7 +260,10 @@ fn app_with_optional_auth_and_electric_url_and_attachment_store(
             get(human_team_issues).post(create_team_issue),
         )
         .route("/api/v1/teams/{team_id}", patch(update_team))
-        .route("/api/v1/projects/{project_id}", patch(update_project))
+        .route(
+            "/api/v1/projects/{project_id}",
+            patch(update_project).delete(delete_project),
+        )
         .route(
             "/api/v1/organizations/{organization_id}/logo",
             get(organization_logo).put(upload_organization_logo).delete(delete_organization_logo),
@@ -672,6 +676,27 @@ pub fn openapi_document_value() -> Value {
         "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CreateAgentRoleRequest"}}}},
         "responses": {"204": {"description": "Agent role created"}}
     });
+    document["paths"]["/api/v1/projects/{project_id}"]["delete"] = json!({
+        "operationId": "deleteProject",
+        "parameters": [{"name": "project_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/DeleteProjectRequest"}}}},
+        "responses": {"204": {"description": "Project deleted"}}
+    });
+    document["paths"]["/api/v1/auth/me/theme"]["put"] = json!({
+        "operationId": "updateThemePreferences",
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/UpdateThemeRequest"}}}},
+        "responses": {"204": {"description": "Theme preferences updated"}}
+    });
+    document["components"]["schemas"]["DeleteProjectRequest"] = json!({
+        "type": "object",
+        "required": ["team_name", "project_name"],
+        "properties": {"team_name": {"type": "string"}, "project_name": {"type": "string"}}
+    });
+    document["components"]["schemas"]["UpdateThemeRequest"] = json!({
+        "type": "object",
+        "required": ["mode", "light_theme", "dark_theme"],
+        "properties": {"mode": {"type": "string", "enum": ["system", "light", "dark"]}, "light_theme": {"type": "string"}, "dark_theme": {"type": "string"}}
+    });
     document["components"]["schemas"]["CreateAgentRoleRequest"] = json!({
         "type": "object",
         "required": ["display_name"],
@@ -685,11 +710,13 @@ const DOCUMENTED_ROUTE_SURFACE: &[(&str, &str)] = &[
     ("/api/v1/auth/cli-login", "post"),
     ("/api/v1/auth/cli-login/{token}/exchange", "post"),
     ("/api/v1/auth/me/nux", "post"),
+    ("/api/v1/auth/me/theme", "put"),
     ("/api/v1/auth/me/avatar", "get"),
     ("/api/v1/auth/me/avatar", "put"),
     ("/api/v1/auth/me/avatar", "delete"),
     ("/api/v1/teams/{team_id}", "patch"),
     ("/api/v1/projects/{project_id}", "patch"),
+    ("/api/v1/projects/{project_id}", "delete"),
     ("/api/v1/organizations/{organization_id}/logo", "get"),
     ("/api/v1/organizations/{organization_id}/logo", "put"),
     ("/api/v1/organizations/{organization_id}/logo", "delete"),
@@ -925,6 +952,9 @@ struct HumanMeResponse {
     display_name: Option<String>,
     last_completed_nux_version: Option<String>,
     last_completed_nux_at: Option<chrono::DateTime<chrono::Utc>>,
+    theme_mode: String,
+    light_theme: String,
+    dark_theme: String,
     avatar_url: Option<String>,
     memberships: Vec<HumanMembershipResponse>,
     teams: Vec<HumanTeamMembershipResponse>,
@@ -933,6 +963,13 @@ struct HumanMeResponse {
 #[derive(Debug, Deserialize)]
 struct CompleteNuxRequest {
     version: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct UpdateThemeRequest {
+    mode: String,
+    light_theme: String,
+    dark_theme: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -1042,6 +1079,12 @@ struct UpdateTeamRequest {
 #[derive(Debug, Deserialize)]
 struct UpdateProjectRequest {
     icon: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct DeleteProjectRequest {
+    team_name: String,
+    project_name: String,
 }
 
 #[derive(Debug, Deserialize)]
